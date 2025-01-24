@@ -1,4 +1,4 @@
-# E-commerce Management System
+ZA# E-commerce Management System
 
 ## Project Overview
 This project is a simple e-commerce management system developed using Flask. It provides RESTful API endpoints for managing customers, customer accounts, products, and orders. The system allows users to perform CRUD (Create, Read, Update, Delete) operations across different entities, ensuring an interactive and efficient experience.

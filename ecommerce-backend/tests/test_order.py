@@ -1,115 +1,170 @@
-# tests/test_order.py
 import unittest
-from app import app, db
-from app.models import Customer, Product, Order, OrderItem
-from datetime import datetime
+from unittest.mock import patch
+from app import create_app
+from models import db
+from services.order_service import OrderService
 
-class OrderTestCase(unittest.TestCase):
+
+class TestOrderEndpoints(unittest.TestCase):
     def setUp(self):
-        # Set up the test client and create the database tables
-        self.app = app.test_client()
-        self.app.testing = True
-        with app.app_context():
-            db.create_all()
-            # Create a customer for order association
-            self.customer = Customer(name="Test Customer", email="testcustomer@example.com", phone_number="+1234567890")
-            db.session.add(self.customer)
-            # Create a product to add to orders
-            self.product = Product(name="Test Product", price=10.0, stock_level=100)
-            db.session.add(self.product)
-            db.session.commit()
+        """Set up the test client and headers."""
+        self.client = app.test_client()
+        self.headers = {"Authorization": "Bearer testtoken"}  # Mocked token for authentication
 
-    def tearDown(self):
-        # Clean up and drop the tables after each test
-        with app.app_context():
-            db.session.remove()
-            db.drop_all()
-
-    def test_create_order(self):
-        # Test creating a new order
-        response = self.app.post('/order', json={
-            'customer_id': self.customer.id,
-            'order_items': [
-                {
-                    'product_id': self.product.id,
-                    'quantity': 2
-                }
-            ]
-        })
-        self.assertEqual(response.status_code, 201)
-        self.assertIn(b'Order created successfully', response.data)
-
-    def test_create_order_insufficient_stock(self):
-        # Test creating an order with a quantity greater than available stock
-        response = self.app.post('/order', json={
-            'customer_id': self.customer.id,
-            'order_items': [
-                {
-                    'product_id': self.product.id,
-                    'quantity': 200  # Insufficient stock
-                }
-            ]
-        })
-        self.assertEqual(response.status_code, 400)
-        self.assertIn(b'Insufficient stock', response.data)
-
-    def test_read_order(self):
-        # Add an order for the test
-        order = Order(order_date=datetime.utcnow(), customer_id=self.customer.id)
-        with app.app_context():
-            db.session.add(order)
-            db.session.flush()
-            order_item = OrderItem(order_id=order.id, product_id=self.product.id, quantity=2)
-            db.session.add(order_item)
-            db.session.commit()
-        
-        # Test reading the order details
-        response = self.app.get(f'/order/{order.id}')
+    @patch("services.order_service.OrderService.get_all_orders")
+    def test_get_all_orders_success(self, mock_get_all_orders):
+        """Test fetching all orders successfully."""
+        # Mock return value
+        mock_get_all_orders.return_value = [
+            {
+                "id": 1,
+                "customer_id": 1,
+                "product_id": 1,
+                "quantity": 2,
+                "total_price": 39.98,
+            },
+            {
+                "id": 2,
+                "customer_id": 2,
+                "product_id": 2,
+                "quantity": 1,
+                "total_price": 29.99,
+            },
+        ]
+        # Perform GET request
+        response = self.client.get("/orders", headers=self.headers)
+        # Assertions
         self.assertEqual(response.status_code, 200)
-        self.assertIn(b'Test Product', response.data)
+        self.assertEqual(len(response.get_json()), 2)
+        self.assertIn("total_price", response.get_data(as_text=True))
 
-    def test_update_order(self):
-        # Add an order for the test
-        order = Order(order_date=datetime.utcnow(), customer_id=self.customer.id)
-        with app.app_context():
-            db.session.add(order)
-            db.session.flush()
-            order_item = OrderItem(order_id=order.id, product_id=self.product.id, quantity=2)
-            db.session.add(order_item)
-            db.session.commit()
-        
-        # Test updating the order
-        response = self.app.put(f'/order/{order.id}', json={
-            'order_items': [
-                {
-                    'product_id': self.product.id,
-                    'quantity': 1
-                }
-            ]
-        })
+    @patch("services.order_service.OrderService.get_all_orders")
+    def test_get_all_orders_empty(self, mock_get_all_orders):
+        """Test fetching all orders when the list is empty."""
+        mock_get_all_orders.return_value = []
+        response = self.client.get("/orders", headers=self.headers)
         self.assertEqual(response.status_code, 200)
-        self.assertIn(b'Order updated successfully', response.data)
+        self.assertEqual(len(response.get_json()), 0)  # Expecting an empty list
 
-    def test_delete_order(self):
-        # Add an order for the test
-        order = Order(order_date=datetime.utcnow(), customer_id=self.customer.id)
-        with app.app_context():
-            db.session.add(order)
-            db.session.flush()
-            order_item = OrderItem(order_id=order.id, product_id=self.product.id, quantity=2)
-            db.session.add(order_item)
-            db.session.commit()
-        
-        # Test deleting the order
-        response = self.app.delete(f'/order/{order.id}')
+    @patch("services.order_service.OrderService.get_order_by_id")
+    def test_get_order_success(self, mock_get_order_by_id):
+        """Test fetching an order by ID successfully."""
+        # Mock return value
+        mock_get_order_by_id.return_value = {
+            "id": 1,
+            "customer_id": 1,
+            "product_id": 1,
+            "quantity": 2,
+            "total_price": 39.98,
+        }
+        # Perform GET request
+        response = self.client.get("/orders/1", headers=self.headers)
+        # Assertions
         self.assertEqual(response.status_code, 200)
-        self.assertIn(b'Order deleted successfully', response.data)
+        self.assertIn("total_price", response.get_data(as_text=True))
 
-    def test_delete_nonexistent_order(self):
-        # Test deleting an order that does not exist
-        response = self.app.delete('/order/999')  # Nonexistent order ID
+    @patch("services.order_service.OrderService.get_order_by_id")
+    def test_get_order_not_found(self, mock_get_order_by_id):
+        """Test fetching an order when the order does not exist."""
+        # Mock side effect to simulate not found
+        mock_get_order_by_id.side_effect = ValueError("Order not found.")
+        # Perform GET request
+        response = self.client.get("/orders/999", headers=self.headers)
+        # Assertions
         self.assertEqual(response.status_code, 404)
-        self.assertIn(b'Order not found', response.data)
+        self.assertIn("Order not found", response.get_data(as_text=True))
 
-if __name__ == '__main__':
+    @patch("services.order_service.OrderService.create_order")
+    def test_create_order_success(self, mock_create_order):
+        """Test creating a new order successfully."""
+        # Mock return value
+        mock_create_order.return_value = {
+            "id": 3,
+            "customer_id": 1,
+            "product_id": 2,
+            "quantity": 1,
+            "total_price": 29.99,
+        }
+        # Perform POST request
+        response = self.client.post(
+            "/orders",
+            json={
+                "customer_id": 1,
+                "product_id": 2,
+                "quantity": 1,
+                "total_price": 29.99,
+            },
+            headers=self.headers,
+        )
+        # Assertions
+        self.assertEqual(response.status_code, 201)
+        self.assertIn("total_price", response.get_data(as_text=True))
+
+    @patch("services.order_service.OrderService.create_order")
+    def test_create_order_invalid_data(self, mock_create_order):
+        """Test creating an order with invalid data."""
+        # Mock side effect to simulate validation error
+        mock_create_order.side_effect = ValueError("Invalid order data.")
+        # Perform POST request
+        response = self.client.post(
+            "/orders",
+            json={
+                "customer_id": 1,
+                "product_id": 2,
+                "quantity": 0,  # Invalid quantity
+            },
+            headers=self.headers,
+        )
+        # Assertions
+        self.assertEqual(response.status_code, 400)
+        self.assertIn("Invalid order data", response.get_data(as_text=True))
+
+    @patch("services.order_service.OrderService.update_order")
+    def test_update_order_success(self, mock_update_order):
+        """Test updating an order successfully."""
+        # Mock return value
+        mock_update_order.return_value = {
+            "id": 1,
+            "customer_id": 1,
+            "product_id": 1,
+            "quantity": 3,
+            "total_price": 59.97,
+        }
+        # Perform PUT request
+        response = self.client.put(
+            "/orders/1",
+            json={
+                "quantity": 3,
+                "total_price": 59.97,
+            },
+            headers=self.headers,
+        )
+        # Assertions
+        self.assertEqual(response.status_code, 200)
+        self.assertIn("total_price", response.get_data(as_text=True))
+
+    @patch("services.order_service.OrderService.delete_order")
+    def test_delete_order_success(self, mock_delete_order):
+        """Test deleting an order successfully."""
+        # Mock return value
+        mock_delete_order.return_value = True
+        # Perform DELETE request
+        response = self.client.delete("/orders/1", headers=self.headers)
+        # Assertions
+        self.assertEqual(response.status_code, 200)
+        self.assertIn("Order deleted successfully", response.get_data(as_text=True))
+
+    @patch("services.order_service.OrderService.delete_order")
+    def test_delete_order_not_found(self, mock_delete_order):
+        """Test deleting an order when the order does not exist."""
+        # Mock side effect to simulate not found
+        mock_delete_order.side_effect = ValueError("Order not found.")
+        # Perform DELETE request
+        response = self.client.delete("/orders/999", headers=self.headers)
+        # Assertions
+        self.assertEqual(response.status_code, 404)
+        self.assertIn("Order not found", response.get_data(as_text=True))
+
+
+if __name__ == "__main__":
     unittest.main()

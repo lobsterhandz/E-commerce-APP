@@ -1,0 +1,76 @@
+name: E-Commerce CI/CD
+
+on:
+  push:
+    branches:
+      - main
+      - feature/tests
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+
+    services:
+      postgres:
+        image: postgres
+        env:
+          POSTGRES_USER: test_user
+          POSTGRES_PASSWORD: test_password
+          POSTGRES_DB: test_db
+        ports:
+          - 5432:5432
+        options: --health-cmd "pg_isready" --health-interval 10s --health-timeout 5s --health-retries 5
+
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v3
+
+      - name: Set Up Python
+        uses: actions/setup-python@v3
+        with:
+          python-version: "3.12"
+
+      - name: Install Dependencies
+        run: |
+          python -m venv venv
+          source venv/bin/activate
+          pip install -r requirements.txt
+
+      - name: Apply Migrations
+        env:
+          FLASK_APP: app.py
+          FLASK_ENV: testing
+          DATABASE_URL: postgresql://test_user:test_password@localhost/test_db
+        run: |
+          source venv/bin/activate
+          flask db upgrade
+
+      - name: Run Tests (Unittest & Pytest with Coverage)
+        env:
+          FLASK_ENV: testing
+          DATABASE_URL: postgresql://test_user:test_password@localhost/test_db
+        run: |
+          source venv/bin/activate
+          pytest tests/ --cov=routes --cov=services --cov-report=term --disable-warnings --maxfail=3 -v
+
+  deploy:
+    needs: test  # Only deploy if tests pass
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v3
+
+      - name: Deploy Flask API to Render
+        env:
+          RENDER_SERVICE_ID: ${{ secrets.RENDER_SERVICE_ID }}
+          RENDER_API_KEY: ${{ secrets.RENDER_API_KEY }}
+        run: |
+          until curl -X POST "https://api.render.com/v1/services/$RENDER_SERVICE_ID/deploys" \
+            -H "Authorization: Bearer $RENDER_API_KEY" \
+            -H "Accept: application/json" \
+            -H "Content-Type: application/json" \
+            --data '{}'; do
+            echo "Render deployment failed, retrying in 10s..."
+            sleep 10
+          done

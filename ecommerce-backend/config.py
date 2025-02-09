@@ -130,11 +130,9 @@ class TestingConfig(Config):
 
 class ProductionConfig(Config):
     """Production-specific configuration."""
-
     DEBUG = False
     SQLALCHEMY_ECHO = False
-    SQLALCHEMY_DATABASE_URI = Config.get_database_uri()
-
+    SQLALCHEMY_DATABASE_URI = os.getenv("DATABASE_URL", "").replace("postgres://", "postgresql://", 1)
 
 # Map configurations by name
 config_by_name = {

@@ -201,7 +201,3 @@ if __name__ == "__main__":
     app = create_app(config_name)
     app.run(debug=(config_name == "development"), host="0.0.0.0", port=5000)
 
-
-
-
-eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJleHAiOjE3MzgxNzQzNzcsImlhdCI6MTczNzU2OTU3Nywic3ViIjoxLCJyb2xlIjoiYWRtaW4ifQ.v2WxzmNnf3ubuWUowvp1ZSUt_tosB5ri59_lb38OuO0

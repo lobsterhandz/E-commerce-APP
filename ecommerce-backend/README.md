@@ -237,3 +237,6 @@ This project is licensed under the MIT License.
 ## Contact
 For any issues or inquiries, please contact [josemurillo82@gmail.com].
 
+## Notes
+- add local db(sqlite) for testing enviorments to avoid accidental  up prodution data
+- 

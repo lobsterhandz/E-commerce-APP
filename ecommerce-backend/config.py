@@ -30,17 +30,29 @@ class Config:
     JWT_HEADER_NAME = os.getenv("JWT_HEADER_NAME", "Authorization")
     JWT_HEADER_TYPE = os.getenv("JWT_HEADER_TYPE", "Bearer")
 
-    # Database Configuration
-    SQLALCHEMY_DATABASE_URI = os.getenv(
-        "DATABASE_URL", "mysql+pymysql://root:password@localhost/ecommerce_db"
-    )
     SQLALCHEMY_TRACK_MODIFICATIONS = False
-    SQLALCHEMY_ENGINE_OPTIONS = {
-        "pool_pre_ping": True,
-        "pool_recycle": 300,
-        "pool_size": 10,
-        "max_overflow": 20,
-    }
+
+    @staticmethod
+    def get_database_uri():
+        """Return database URI based on environment."""
+        env_name = os.getenv("FLASK_ENV", "development").lower()
+        if env_name == "testing":
+            return os.getenv("TEST_DATABASE_URL", "sqlite:///:memory:")
+        
+        db_url = os.getenv("DATABASE_URL", "")
+        if db_url.startswith("postgres://"):
+            db_url = db_url.replace("postgres://", "postgresql://", 1)  # Fix for SQLAlchemy 1.4+
+        return db_url
+
+    SQLALCHEMY_DATABASE_URI = get_database_uri()
+    SQLALCHEMY_ENGINE_OPTIONS = (
+        {} if "sqlite" in SQLALCHEMY_DATABASE_URI else {
+            "pool_pre_ping": True,
+            "pool_recycle": 300,
+            "pool_size": 10,
+            "max_overflow": 20,
+        }
+    )
     SQLALCHEMY_ECHO = False
 
     # Rate Limiting
@@ -74,7 +86,8 @@ class Config:
     def __init__(self):
         """Ensure required environment variables are set and configure logging."""
         self._check_required_env_variables()
-        self._configure_logging()
+        if ENV in ["development", "production"]:
+            self._configure_logging()
 
     def _check_required_env_variables(self):
         """Check if required environment variables are set."""
@@ -103,15 +116,15 @@ class DevelopmentConfig(Config):
 
     DEBUG = True
     SQLALCHEMY_ECHO = True  # Enable SQL logging for debugging
+    SQLALCHEMY_DATABASE_URI = Config.get_database_uri()
 
 
 class TestingConfig(Config):
     """Testing-specific configuration."""
 
     TESTING = True
-    SQLALCHEMY_DATABASE_URI = os.getenv(
-        "TEST_DATABASE_URL", "mysql+pymysql://root:password@localhost/test_db"
-    )  # MySQL Test Database
+    SQLALCHEMY_DATABASE_URI = os.getenv("TEST_DATABASE_URL", "sqlite:///:memory:")
+    SQLALCHEMY_TRACK_MODIFICATIONS = False
     CACHE_TYPE = "NullCache"  # Disable caching during tests
 
 
@@ -120,6 +133,7 @@ class ProductionConfig(Config):
 
     DEBUG = False
     SQLALCHEMY_ECHO = False
+    SQLALCHEMY_DATABASE_URI = Config.get_database_uri()
 
 
 # Map configurations by name
@@ -133,4 +147,3 @@ config_by_name = {
 def get_config(env_name="development"):
     """Retrieve the appropriate configuration class based on the environment."""
     return config_by_name.get(env_name, DevelopmentConfig)
-

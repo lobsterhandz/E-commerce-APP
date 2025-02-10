@@ -37,7 +37,7 @@ jobs:
           pip install --upgrade pip  # Prevent outdated dependencies
           pip install -r ecommerce-backend/requirements.txt
 
-      - name: Apply Migrations  # FIXED INDENTATION
+            - name: Apply Migrations
         env:
           FLASK_APP: ecommerce-backend.app
           FLASK_ENV: ${{ secrets.FLASK_ENV }}
@@ -47,6 +47,7 @@ jobs:
           PASSWORD_SALT: ${{ secrets.PASSWORD_SALT }}
           SWAGGER_HOST: ${{ secrets.SWAGGER_HOST }}
           SWAGGER_SCHEMES: ${{ secrets.SWAGGER_SCHEMES }}
+          PYTHONPATH: ${{ github.workspace }}/ecommerce-backend  # ✅ FIXED: Adds backend folder to Python path
         run: |
           source venv/bin/activate
           flask db upgrade

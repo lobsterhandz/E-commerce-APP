@@ -48,6 +48,7 @@ jobs:
           SWAGGER_HOST: ${{ secrets.SWAGGER_HOST }}  # ✅ FIXED: Now loading from GitHub Secrets
           SWAGGER_SCHEMES: ${{ secrets.SWAGGER_SCHEMES }}
           PYTHONPATH: ${{ github.workspace }}/ecommerce-backend  # Ensure Flask finds the backend app
+          USE_REDIS_CACHE: "False"  # ✅ Fix: Disable Redis in CI/CD
         run: |
           source venv/bin/activate
           flask db upgrade

@@ -26,10 +26,10 @@ jobs:
         uses: actions/checkout@v3
 
       - name: Set Up Python
-        working-directory: ecommerce-backend
         uses: actions/setup-python@v4
         with:
           python-version: "3.9"
+        # Note: 'working-directory' can be set later in run steps if needed.
 
       - name: Create and Activate Virtual Environment
         working-directory: ecommerce-backend
@@ -41,7 +41,7 @@ jobs:
         working-directory: ecommerce-backend
         run: |
           source venv/bin/activate
-          pip install --upgrade pip  # Prevent outdated dependencies
+          pip install --upgrade pip
           pip install -r requirements.txt
 
       - name: Apply Migrations
@@ -75,7 +75,7 @@ jobs:
           pytest tests/ --cov=routes --cov=services --cov-report=term --disable-warnings --maxfail=3 --tb=short -v
 
   deploy:
-    needs: test  # Only deploy if tests pass
+    needs: test
     runs-on: ubuntu-latest
 
     steps:

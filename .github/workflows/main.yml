@@ -49,6 +49,7 @@ jobs:
           SWAGGER_SCHEMES: ${{ secrets.SWAGGER_SCHEMES }}
           PYTHONPATH: ${{ github.workspace }}/ecommerce-backend  # Ensure Flask finds the backend app
           USE_REDIS_CACHE: "False"  # ✅ Fix: Disable Redis in CI/CD
+          FLASK_MIGRATE_DIRECTORY: "ecommerce-backend/migrations"
         run: |
           source venv/bin/activate
           flask db upgrade

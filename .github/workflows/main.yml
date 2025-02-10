@@ -14,9 +14,9 @@ jobs:
       postgres:
         image: postgres
         env:
-          POSTGRES_USER: e_commerce_pg_db_user  # ✅ FIXED
-          POSTGRES_PASSWORD: Iuel3QIyuNKNP8IytdUEce40oXFoFCvd  # ✅ FIXED
-          POSTGRES_DB: e_commerce_pg_db  # ✅ FIXED
+          POSTGRES_USER: e_commerce_pg_db_user
+          POSTGRES_PASSWORD: Iuel3QIyuNKNP8IytdUEce40oXFoFCvd
+          POSTGRES_DB: e_commerce_pg_db
         ports:
           - 5432:5432
         options: --health-cmd "pg_isready" --health-interval 10s --health-timeout 5s --health-retries 5
@@ -26,28 +26,28 @@ jobs:
         uses: actions/checkout@v3
 
       - name: Set Up Python
+        working-directory: ecommerce-backend
         uses: actions/setup-python@v4
         with:
           python-version: "3.9"
 
       - name: Create and Activate Virtual Environment
-        working-directory: ecommerce-backend  # ✅ Ensure venv is created inside backend
-        run: |
-          python -m venv venv  # ✅ Create venv in correct path
-          echo "✅ Virtual environment created successfully"
-          
-      - name: Install Dependencies
-        working-directory: ecommerce-backend  # ✅ All commands now run inside ecommerce-backend/
+        working-directory: ecommerce-backend
         run: |
           python -m venv venv
+          echo "✅ Virtual environment created successfully"
+
+      - name: Install Dependencies
+        working-directory: ecommerce-backend
+        run: |
           source venv/bin/activate
           pip install --upgrade pip  # Prevent outdated dependencies
           pip install -r requirements.txt
 
       - name: Apply Migrations
-        working-directory: ecommerce-backend  # ✅ Run migrations inside ecommerce-backend/
+        working-directory: ecommerce-backend
         env:
-          FLASK_APP: app  # ✅ No need to specify the folder anymore
+          FLASK_APP: app
           FLASK_ENV: ${{ secrets.FLASK_ENV }}
           DATABASE_URL: ${{ secrets.DATABASE_URL }}
           SECRET_KEY: ${{ secrets.SECRET_KEY }}
@@ -56,7 +56,7 @@ jobs:
           SWAGGER_HOST: ${{ secrets.SWAGGER_HOST }}
           SWAGGER_SCHEMES: ${{ secrets.SWAGGER_SCHEMES }}
           USE_REDIS_CACHE: "False"
-          PYTHONPATH: ${{ github.workspace }}/ecommerce-backend 
+          PYTHONPATH: ${{ github.workspace }}/ecommerce-backend
         run: |
           source venv/bin/activate
           if [ ! -d "migrations/versions" ]; then flask db init; fi
@@ -65,9 +65,9 @@ jobs:
           python tests/db_seed.py
 
       - name: Run Tests (Unittest & Pytest with Coverage)
+        working-directory: ecommerce-backend
         env:
-          working-directory: ecommerce-backend  # ✅ Run tests inside ecommerce-backend/
-          FLASK_ENV: ${{ secrets.FLASK_ENV }}  # FIXED
+          FLASK_ENV: ${{ secrets.FLASK_ENV }}
           DATABASE_URL: postgresql://test_user:test_password@localhost/test_db
           PYTHONPATH: ${{ github.workspace }}/ecommerce-backend
         run: |

@@ -37,7 +37,7 @@ jobs:
           pip install --upgrade pip  # Prevent outdated dependencies
           pip install -r ecommerce-backend/requirements.txt
 
-        - name: Apply Migrations
+      - name: Apply Migrations  # FIXED INDENTATION
         env:
           FLASK_APP: ecommerce-backend.app
           FLASK_ENV: ${{ secrets.FLASK_ENV }}
@@ -51,10 +51,9 @@ jobs:
           source venv/bin/activate
           flask db upgrade
 
-
       - name: Run Tests (Unittest & Pytest with Coverage)
         env:
-          FLASK_ENV: testing
+          FLASK_ENV: ${{ secrets.FLASK_ENV }}  # FIXED
           DATABASE_URL: postgresql://test_user:test_password@localhost/test_db
         run: |
           source venv/bin/activate

@@ -11,12 +11,14 @@ def auth_tokens(client):
         "username": "admin",
         "password": "adminpassword"
     })
+    # Print the login response to inspect the structure
+    print("Admin login response:", admin_resp.get_json())
     # Authenticate as customer
     customer_resp = client.post("/users/login", json={
         "username": "customer1",
         "password": "customerpassword"
     })
-
+    print("Customer login response:", customer_resp.get_json())
     # Ensure both logins succeed
     assert admin_resp.status_code == 200, "Admin login failed"
     assert customer_resp.status_code == 200, "Customer login failed"
@@ -26,8 +28,8 @@ def auth_tokens(client):
     customer_data = customer_resp.get_json()
 
     return {
-        "admin": f"Bearer {admin_data['access_token']}",
-        "customer": f"Bearer {customer_data['access_token']}"
+        "admin": f"Bearer {admin_data['token']}",
+        "customer": f"Bearer {customer_data['token']}"
     }
 
 def test_get_products(client, auth_tokens):

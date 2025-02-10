@@ -58,10 +58,11 @@ jobs:
           python tests/db_seed.py
 
       - name: Run Tests (Unittest & Pytest with Coverage)
-        working-directory: ecommerce-backend  # ✅ Run tests inside ecommerce-backend/
         env:
+          working-directory: ecommerce-backend  # ✅ Run tests inside ecommerce-backend/
           FLASK_ENV: ${{ secrets.FLASK_ENV }}  # FIXED
           DATABASE_URL: postgresql://test_user:test_password@localhost/test_db
+          PYTHONPATH: ${{ github.workspace }}/ecommerce-backend
         run: |
           source venv/bin/activate
           pytest tests/ --cov=routes --cov=services --cov-report=term --disable-warnings --maxfail=3 --tb=short -v

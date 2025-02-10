@@ -37,22 +37,24 @@ jobs:
           pip install --upgrade pip  # Prevent outdated dependencies
           pip install -r ecommerce-backend/requirements.txt
 
-      - name: Apply Migrations
+        - name: Apply Migrations
         env:
           FLASK_APP: ecommerce-backend.app
           FLASK_ENV: ${{ secrets.FLASK_ENV }}
-          DATABASE_URL: postgresql://test_user:test_password@localhost/test_db
+          DATABASE_URL: ${{ secrets.DATABASE_URL }}
           SECRET_KEY: ${{ secrets.SECRET_KEY }}
           JWT_SECRET_KEY: ${{ secrets.JWT_SECRET_KEY }}
           PASSWORD_SALT: ${{ secrets.PASSWORD_SALT }}
-          SWAGGER_HOST: ${{ secrets.SWAGGER_HOST }}  # ✅ FIXED: Now loading from GitHub Secrets
+          SWAGGER_HOST: ${{ secrets.SWAGGER_HOST }}
           SWAGGER_SCHEMES: ${{ secrets.SWAGGER_SCHEMES }}
-          PYTHONPATH: ${{ github.workspace }}/ecommerce-backend  # Ensure Flask finds the backend app
-          USE_REDIS_CACHE: "False"  # ✅ Fix: Disable Redis in CI/CD
+          USE_REDIS_CACHE: "False"
           FLASK_MIGRATE_DIRECTORY: "ecommerce-backend/migrations"
         run: |
           source venv/bin/activate
-          flask db upgrade
+          if [ ! -d "ecommerce-backend/migrations/versions" ]; then flask db init --directory ecommerce-backend/migrations; fi
+          flask db migrate -m "Auto migration" --directory ecommerce-backend/migrations
+          flask db upgrade --directory ecommerce-backend/migrations
+
 
 
       - name: Run Tests (Unittest & Pytest with Coverage)

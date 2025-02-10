@@ -37,16 +37,20 @@ jobs:
           pip install --upgrade pip  # Prevent outdated dependencies
           pip install -r ecommerce-backend/requirements.txt
 
-      - name: Apply Migrations
+        - name: Apply Migrations
         env:
           FLASK_APP: ecommerce-backend.app
-          FLASK_ENV: testing
-          PYTHONPATH: ${{ github.workspace }}/ecommerce-backend  # Ensure Flask finds the app
-          DATABASE_URL: postgresql://test_user:test_password@localhost/test_db
+          FLASK_ENV: ${{ secrets.FLASK_ENV }}
+          DATABASE_URL: ${{ secrets.DATABASE_URL }}
+          SECRET_KEY: ${{ secrets.SECRET_KEY }}
+          JWT_SECRET_KEY: ${{ secrets.JWT_SECRET_KEY }}
+          PASSWORD_SALT: ${{ secrets.PASSWORD_SALT }}
+          SWAGGER_HOST: ${{ secrets.SWAGGER_HOST }}
+          SWAGGER_SCHEMES: ${{ secrets.SWAGGER_SCHEMES }}
         run: |
           source venv/bin/activate
-          sleep 5  # Ensure PostgreSQL is fully ready
           flask db upgrade
+
 
       - name: Run Tests (Unittest & Pytest with Coverage)
         env:

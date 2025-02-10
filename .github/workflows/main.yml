@@ -30,6 +30,12 @@ jobs:
         with:
           python-version: "3.9"
 
+      - name: Create and Activate Virtual Environment
+        working-directory: ecommerce-backend  # ✅ Ensure venv is created inside backend
+        run: |
+          python -m venv venv  # ✅ Create venv in correct path
+          echo "✅ Virtual environment created successfully"
+          
       - name: Install Dependencies
         working-directory: ecommerce-backend  # ✅ All commands now run inside ecommerce-backend/
         run: |

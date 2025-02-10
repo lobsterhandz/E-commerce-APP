@@ -55,6 +55,7 @@ jobs:
           if [ ! -d "migrations/versions" ]; then flask db init; fi
           flask db migrate -m "Auto migration"
           flask db upgrade
+          python tests/db_seed.py
 
       - name: Run Tests (Unittest & Pytest with Coverage)
         working-directory: ecommerce-backend  # ✅ Run tests inside ecommerce-backend/

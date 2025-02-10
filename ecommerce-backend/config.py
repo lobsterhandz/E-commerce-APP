@@ -19,7 +19,8 @@ class Config:
     JWT_SECRET_KEY = os.getenv("JWT_SECRET_KEY", "jwt_default_secret")
     PASSWORD_SALT = os.getenv("PASSWORD_SALT", "default_salt")
     TOKEN_EXPIRY_DAYS = int(os.getenv("TOKEN_EXPIRY_DAYS", 7))
-    
+    SWAGGER_HOST = os.getenv("SWAGGER_HOST", "localhost:5000")  # ✅ Default to localhost if missing
+    SWAGGER_SCHEMES = ["https"] if os.getenv("SWAGGER_SCHEMES", "http") == "https" else ["http"]
     DEBUG = False
     TESTING = False
 

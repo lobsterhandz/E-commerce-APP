@@ -41,16 +41,17 @@ jobs:
         env:
           FLASK_APP: ecommerce-backend.app
           FLASK_ENV: ${{ secrets.FLASK_ENV }}
-          DATABASE_URL: ${{ secrets.DATABASE_URL }}
+          DATABASE_URL: postgresql://test_user:test_password@localhost/test_db
           SECRET_KEY: ${{ secrets.SECRET_KEY }}
           JWT_SECRET_KEY: ${{ secrets.JWT_SECRET_KEY }}
           PASSWORD_SALT: ${{ secrets.PASSWORD_SALT }}
-          SWAGGER_HOST: ${{ secrets.SWAGGER_HOST }}
+          SWAGGER_HOST: ${{ secrets.SWAGGER_HOST }}  # ✅ FIXED: Now loading from GitHub Secrets
           SWAGGER_SCHEMES: ${{ secrets.SWAGGER_SCHEMES }}
-          PYTHONPATH: ${{ github.workspace }}/ecommerce-backend  # ✅ FIXED: Adds backend folder to Python path
+          PYTHONPATH: ${{ github.workspace }}/ecommerce-backend  # Ensure Flask finds the backend app
         run: |
           source venv/bin/activate
           flask db upgrade
+
 
       - name: Run Tests (Unittest & Pytest with Coverage)
         env:

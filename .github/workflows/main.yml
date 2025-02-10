@@ -34,15 +34,18 @@ jobs:
         run: |
           python -m venv venv
           source venv/bin/activate
+          pip install --upgrade pip  # Prevent outdated dependencies
           pip install -r ecommerce-backend/requirements.txt
 
       - name: Apply Migrations
         env:
-          FLASK_APP: app.py
+          FLASK_APP: ecommerce-backend.app
           FLASK_ENV: testing
+          PYTHONPATH: ${{ github.workspace }}/ecommerce-backend  # Ensure Flask finds the app
           DATABASE_URL: postgresql://test_user:test_password@localhost/test_db
         run: |
           source venv/bin/activate
+          sleep 5  # Ensure PostgreSQL is fully ready
           flask db upgrade
 
       - name: Run Tests (Unittest & Pytest with Coverage)
@@ -51,7 +54,7 @@ jobs:
           DATABASE_URL: postgresql://test_user:test_password@localhost/test_db
         run: |
           source venv/bin/activate
-          pytest tests/ --cov=routes --cov=services --cov-report=term --disable-warnings --maxfail=3 -v
+          pytest tests/ --cov=routes --cov=services --cov-report=term --disable-warnings --maxfail=3 --tb=short -v
 
   deploy:
     needs: test  # Only deploy if tests pass

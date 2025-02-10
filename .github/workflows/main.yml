@@ -37,7 +37,7 @@ jobs:
           pip install --upgrade pip  # Prevent outdated dependencies
           pip install -r ecommerce-backend/requirements.txt
 
-            - name: Apply Migrations
+      - name: Apply Migrations
         env:
           FLASK_APP: ecommerce-backend.app
           FLASK_ENV: ${{ secrets.FLASK_ENV }}

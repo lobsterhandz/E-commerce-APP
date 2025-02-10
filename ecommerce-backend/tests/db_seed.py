@@ -2,7 +2,8 @@ import json
 import os
 from sqlalchemy.exc import IntegrityError
 from werkzeug.security import generate_password_hash
-from ecommerce-backend.models import db, User, Category, Product, Customer, Order, OrderItem, ShoppingCart, ShoppingCartItem, CustomerAccount
+
+from models import db, User, Category, Product, Customer, Order, OrderItem, ShoppingCart, ShoppingCartItem, CustomerAccount
 
 def seed_all():
     """Seed the database with test data from mock_data.json"""

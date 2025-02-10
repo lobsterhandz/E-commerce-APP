@@ -50,6 +50,7 @@ jobs:
           SWAGGER_HOST: ${{ secrets.SWAGGER_HOST }}
           SWAGGER_SCHEMES: ${{ secrets.SWAGGER_SCHEMES }}
           USE_REDIS_CACHE: "False"
+          PYTHONPATH: ${{ github.workspace }}/ecommerce-backend 
         run: |
           source venv/bin/activate
           if [ ! -d "migrations/versions" ]; then flask db init; fi

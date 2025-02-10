@@ -14,9 +14,9 @@ jobs:
       postgres:
         image: postgres
         env:
-          POSTGRES_USER: test_user
-          POSTGRES_PASSWORD: test_password
-          POSTGRES_DB: test_db
+          POSTGRES_USER: e_commerce_pg_db_user  # ✅ FIXED
+          POSTGRES_PASSWORD: Iuel3QIyuNKNP8IytdUEce40oXFoFCvd  # ✅ FIXED
+          POSTGRES_DB: e_commerce_pg_db  # ✅ FIXED
         ports:
           - 5432:5432
         options: --health-cmd "pg_isready" --health-interval 10s --health-timeout 5s --health-retries 5

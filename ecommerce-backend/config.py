@@ -43,8 +43,6 @@ class Config:
             db_url = db_url.replace("postgres://", "postgresql://", 1)  # Fix for SQLAlchemy 1.4+
         return db_url if db_url else "sqlite:///:memory:"  # ✅ Default to SQLite if missing
 
-    SQLALCHEMY_DATABASE_URI = Config.get_database_uri()
-
 
     # ✅ Rate Limiting Config (Restored)
     RATELIMIT_DAILY = int(os.getenv("RATELIMIT_DAILY", 200))

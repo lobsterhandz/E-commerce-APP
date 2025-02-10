@@ -19,6 +19,7 @@ class Config:
     JWT_SECRET_KEY = os.getenv("JWT_SECRET_KEY", "jwt_default_secret")
     PASSWORD_SALT = os.getenv("PASSWORD_SALT", "default_salt")
     TOKEN_EXPIRY_DAYS = int(os.getenv("TOKEN_EXPIRY_DAYS", 7))
+    
     DEBUG = False
     TESTING = False
 
@@ -39,6 +40,71 @@ class Config:
         if db_url.startswith("postgres://"):
             db_url = db_url.replace("postgres://", "postgresql://", 1)  # Fix for SQLAlchemy 1.4+
         return db_url
+    SQLALCHEMY_DATABASE_URI = get_database_uri()
+    SQLALCHEMY_ENGINE_OPTIONS = (
+        {} if "sqlite" in SQLALCHEMY_DATABASE_URI else {
+            "pool_pre_ping": True,
+            "pool_recycle": 300,
+            "pool_size": 10,
+            "max_overflow": 20,
+        }
+    )
+    SQLALCHEMY_ECHO = False
+
+    # Rate Limiting
+    RATELIMIT_DAILY = int(os.getenv("RATELIMIT_DAILY", 200))
+    RATELIMIT_HOURLY = int(os.getenv("RATELIMIT_HOURLY", 50))
+    RATELIMIT_DEFAULT = f"{RATELIMIT_DAILY} per day; {RATELIMIT_HOURLY} per hour"
+    RATELIMIT_STORAGE_URI = os.getenv("RATELIMIT_REDIS_URL", "memory://")
+    RATELIMIT_HEADERS_ENABLED = (
+        os.getenv("RATELIMIT_HEADERS_ENABLED", "True").lower() in ["true", "1", "yes"]
+    )
+
+    # Caching Configuration
+    CACHE_TYPE = (
+        "RedisCache"
+        if os.getenv("USE_REDIS_CACHE", "False").lower() in ["true", "1", "yes"]
+        else "SimpleCache"
+    )
+    CACHE_DEFAULT_TIMEOUT = int(os.getenv("CACHE_DEFAULT_TIMEOUT", 300))
+    CACHE_REDIS_URL = os.getenv("CACHE_REDIS_URL", "redis://localhost:6379/0")
+
+    # Swagger Configuration
+    SWAGGER_HOST = os.getenv("SWAGGER_HOST", "127.0.0.1:5000")
+    SWAGGER_SCHEMES = ["https"] if ENV == "production" else ["http"]
+
+    # Logging Configuration
+    LOG_LEVEL = os.getenv("LOG_LEVEL", "INFO")
+    LOG_FILE = os.getenv("LOG_FILE", "logs/app.log")
+    LOG_ROTATION_BYTES = int(os.getenv("LOG_ROTATION_BYTES", 10 * 1024 * 1024))
+    LOG_BACKUP_COUNT = int(os.getenv("LOG_BACKUP_COUNT", 5))
+
+    def __init__(self):
+        """Ensure required environment variables are set and configure logging."""
+        self._check_required_env_variables()
+        if ENV in ["development", "production"]:
+            self._configure_logging()
+
+    def _check_required_env_variables(self):
+        """Check if required environment variables are set."""
+        required_vars = ["SECRET_KEY", "DATABASE_URL", "JWT_SECRET_KEY", "PASSWORD_SALT"]
+        missing_vars = [var for var in required_vars if not os.getenv(var)]
+        if missing_vars:
+            msg = f"Missing required environment variables: {', '.join(missing_vars)}"
+            if ENV == "production":
+                raise ValueError(msg)
+            else:
+                logging.warning(msg)
+
+    def _configure_logging(self):
+        """Set up rotating file logging."""
+        handler = RotatingFileHandler(
+            self.LOG_FILE, maxBytes=self.LOG_ROTATION_BYTES, backupCount=self.LOG_BACKUP_COUNT
+        )
+        handler.setLevel(logging.getLevelName(self.LOG_LEVEL))
+        formatter = logging.Formatter("%(asctime)s %(levelname)s: %(message)s")
+        handler.setFormatter(formatter)
+        logging.getLogger().addHandler(handler)
 
 
 class DevelopmentConfig(Config):
@@ -46,7 +112,7 @@ class DevelopmentConfig(Config):
 
     DEBUG = True
     SQLALCHEMY_ECHO = True  # Enable SQL logging for debugging
-    SQLALCHEMY_DATABASE_URI = Config.get_database_uri()  # Correct method call
+    SQLALCHEMY_DATABASE_URI = Config.get_database_uri()
 
 
 class TestingConfig(Config):
@@ -62,8 +128,7 @@ class ProductionConfig(Config):
     """Production-specific configuration."""
     DEBUG = False
     SQLALCHEMY_ECHO = False
-    SQLALCHEMY_DATABASE_URI = Config.get_database_uri()  # Correct method call
-
+    SQLALCHEMY_DATABASE_URI = os.getenv("DATABASE_URL", "").replace("postgres://", "postgresql://", 1)
 
 # Map configurations by name
 config_by_name = {

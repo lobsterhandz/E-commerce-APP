@@ -35,6 +35,7 @@ jobs:
         working-directory: ecommerce-backend
         run: |
           python -m venv venv
+          source venv/bin/activate
           echo "✅ Virtual environment created successfully"
 
       - name: Install Dependencies

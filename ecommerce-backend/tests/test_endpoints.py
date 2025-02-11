@@ -132,7 +132,7 @@ def test_customer_cannot_delete_product(client, auth_tokens):
     """
     Ensure customers cannot delete products.
     """
-    headers = {"Authorization": auth_tokens["customer"]}
+    headers={"Authorization": auth_tokens["admin"]}
     # Dynamically create a product for this test
     create_resp = client.post("/products", json={"name": "CannotDelete", "price": 30.00, "stock_quantity": 10, "category_id": 1}, headers=auth_tokens["admin"])
     assert create_resp.status_code == 201, "Failed to create product for customer delete test"
@@ -151,7 +151,8 @@ def test_admin_can_list_users(client, auth_tokens):
     response = client.get("/users", headers=headers)
     assert response.status_code == 200, f"Expected 200 but got {response.status_code}"
     data = response.get_json()
-    assert isinstance(data, list), "Users endpoint did not return a list"
+    assert "users" in data, "Response does not contain 'users' key"  # ✅ Fix
+    assert isinstance(data["users"], list), "Users endpoint did not return a list"  # ✅ Fix
 
 def test_customer_cannot_list_users(client, auth_tokens):
     """

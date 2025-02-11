@@ -11,7 +11,7 @@ from flask_jwt_extended import JWTManager
 
 from models import db
 from config import config_by_name
-from utils.limiter import limiter_setup
+from utils.limiter import create_limiter
 from utils.caching import CacheManager
 from routes import (
     create_customer_bp,
@@ -25,6 +25,10 @@ from routes import (
     create_category_bp,
 )
 
+# Load environment variables from .env
+from dotenv import load_dotenv
+load_dotenv()
+
 # Initialize CacheManager globally
 cache_manager = CacheManager()
 
@@ -32,19 +36,14 @@ def setup_logging(app):
     """Set up logging for the application."""
     if not app.debug and not app.testing:
         os.makedirs("logs", exist_ok=True)
-        file_handler = RotatingFileHandler(
-            "logs/ecommerce.log", maxBytes=10240, backupCount=10
-        )
+        file_handler = RotatingFileHandler("logs/ecommerce.log", maxBytes=10240, backupCount=10)
         file_handler.setFormatter(
-            logging.Formatter(
-                "%(asctime)s %(levelname)s: %(message)s [in %(pathname)s:%(lineno)d]"
-            )
+            logging.Formatter("%(asctime)s %(levelname)s: %(message)s [in %(pathname)s:%(lineno)d]")
         )
         file_handler.setLevel(logging.INFO)
         app.logger.addHandler(file_handler)
         app.logger.setLevel(logging.INFO)
         app.logger.info("E-Commerce Application Startup")
-
 
 def validate_configuration(app):
     """Validate critical application configurations."""
@@ -57,35 +56,37 @@ def validate_configuration(app):
 def create_app(config_name="development"):
     """
     Factory function to create and configure the Flask application.
-
+    
     Args:
         config_name (str): Configuration name ('development', 'testing', 'production').
-
+    
     Returns:
         Flask: Configured Flask application.
     """
     config_name = config_name or os.getenv("FLASK_CONFIG", "development")
     app = Flask(__name__)
     app.config.from_object(config_by_name[config_name])
-    print(f"SWAGGER_HOST: {app.config['SWAGGER_HOST']}")#debug
+    print(f"SWAGGER_HOST: {app.config.get('SWAGGER_HOST')}")  # Debug
 
-    # Enable CORS1
+    # Initialize rate limiter
+    limiter = create_limiter(app)
+
+    # Enable CORS
     CORS(app)
 
     # Initialize extensions
     db.init_app(app)
     Migrate(app, db)
-    limiter_setup(app)
     cache_manager.init_app(app)
     JWTManager(app)
-    
-    # Setup and validations
+
+    # Setup and validate configuration
     validate_configuration(app)
     setup_logging(app)
-    
+
     # Swagger Configuration
     swagger_config = {
-        "headers": [],  # No need to specify 'bearer' here
+        "headers": [],
         "specs": [
             {
                 "endpoint": "apispec",
@@ -106,7 +107,7 @@ def create_app(config_name="development"):
             "description": "API documentation for managing e-commerce operations.",
             "version": "1.0.0",
         },
-        "host": app.config["SWAGGER_HOST"],  # Change based on your environment
+        "host": app.config.get("SWAGGER_HOST", "localhost:5000"),
         "basePath": "/",
         "schemes": ["http"],
         "securityDefinitions": {
@@ -120,9 +121,7 @@ def create_app(config_name="development"):
         "security": [{"Bearer": []}],
     }
 
-    # Initialize Swagger
     Swagger(app, config=swagger_config, template=swagger_template)
-
 
     # Register blueprints
     app.register_blueprint(create_customer_bp(cache_manager.cache), url_prefix="/customers")
@@ -139,8 +138,6 @@ def create_app(config_name="development"):
     def health_check():
         """Health check endpoint."""
         health_status = {"status": "healthy", "details": {}}
-
-        # Check database connection
         try:
             db.session.execute(text("SELECT 1"))
             health_status["details"]["database"] = "connected"
@@ -148,8 +145,6 @@ def create_app(config_name="development"):
             app.logger.error(f"Database health check failed: {str(e)}")
             health_status["status"] = "unhealthy"
             health_status["details"]["database"] = str(e)
-
-        # Check cache status
         try:
             if cache_manager.cache_type == "RedisCache":
                 redis_connected = cache_manager.cache and cache_manager.cache.ping()
@@ -160,22 +155,19 @@ def create_app(config_name="development"):
             app.logger.warning(f"Redis health check failed: {str(e)}")
             health_status["status"] = "unhealthy"
             health_status["details"]["redis"] = str(e)
-
         return jsonify(health_status), 200 if health_status["status"] == "healthy" else 500
 
-    # Route for debugging all registered routes
     @app.route('/routes', methods=['GET'])
     def list_routes():
         """Lists all routes in the application for debugging."""
         output = []
         for rule in app.url_map.iter_rules():
-            methods = ','.join(rule.methods)
+            methods = ','.join(sorted(rule.methods))
             output.append(f"{rule.endpoint}: {rule.rule} [{methods}]")
         return jsonify(output)
 
     # Unified Error Handlers
     def generate_error_response(message, status_code):
-        """Generate a consistent error response."""
         return jsonify({"error": message}), status_code
 
     @app.errorhandler(404)
@@ -195,9 +187,7 @@ def create_app(config_name="development"):
 
     return app
 
-
 if __name__ == "__main__":
     config_name = os.getenv("FLASK_CONFIG", "development")
     app = create_app(config_name)
     app.run(debug=(config_name == "development"), host="0.0.0.0", port=5000)
-

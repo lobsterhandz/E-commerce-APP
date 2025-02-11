@@ -1,7 +1,7 @@
 from flask import Blueprint, request, jsonify
 from flask_jwt_extended import jwt_required
 from utils.utils import encode_token, role_required, error_response
-from utils.limiter import limiter
+from utils.limiter import iitialized_limiter
 from flasgger.utils import swag_from
 from sqlalchemy.exc import IntegrityError
 from schemas.user_schema import user_schema, users_schema

@@ -2,7 +2,7 @@ from flask import Blueprint, request, jsonify
 from services.category_service import CategoryService
 from schemas.category_schema import category_schema, categories_schema
 from utils.utils import error_response, role_required, jwt_required
-from utils.limiter import limiter
+from utils.limiter import create_limiter
 from flasgger.utils import swag_from
 
 # Allowed sortable fields

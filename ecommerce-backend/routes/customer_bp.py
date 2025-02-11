@@ -3,7 +3,7 @@ from services.customer_service import CustomerService
 from schemas.customer_schema import customer_schema, customers_schema
 from utils.utils import error_response, role_required
 from flask_jwt_extended import jwt_required
-from utils.limiter import limiter
+from utils.limiter import create_limiter
 from flasgger.utils import swag_from
 
 # Allowed sortable fields

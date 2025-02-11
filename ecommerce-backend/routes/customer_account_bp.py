@@ -3,7 +3,7 @@ from services.customer_account_service import CustomerAccountService
 from schemas.customer_account_schema import customer_account_schema, customer_accounts_schema
 from utils.utils import error_response, role_required
 from flask_jwt_extended import jwt_required
-from utils.limiter import limiter
+from utils.limiter import create_limiter
 from flasgger.utils import swag_from
 
 SORTABLE_FIELDS = CustomerAccountService.SORTABLE_FIELDS

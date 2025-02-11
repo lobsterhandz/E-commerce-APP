@@ -2,7 +2,7 @@ from flask import Blueprint, request, jsonify
 from services.order_service import OrderService
 from schemas.order_schema import order_schema, orders_schema
 from utils.utils import error_response, role_required, jwt_required
-from utils.limiter import limiter
+from utils.limiter import create_limiter
 from flasgger.utils import swag_from
 
 # Allowed sortable fields (removed 'quantity' as it's part of order items)

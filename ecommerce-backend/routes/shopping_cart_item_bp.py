@@ -2,7 +2,7 @@ from flask import Blueprint, request, jsonify
 from services.shopping_cart_item_service import ShoppingCartItemService
 from flask_jwt_extended import jwt_required
 from utils.utils import error_response
-from utils.limiter import limiter
+from utils.limiter import create_limiter
 from flasgger.utils import swag_from
 
 # Allowed sortable fields for shopping cart items.

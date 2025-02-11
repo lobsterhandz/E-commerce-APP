@@ -267,26 +267,28 @@ def create_user_bp(cache, limiter):
         }
     })
     def list_users():
-        """Lists all users with pagination and sorting."""
+        """
+        Lists all users with pagination and sorting.
+        This endpoint is restricted to admin users.
+        """
+        # Explicitly enforce that only admins can access this endpoint
+        if g.user.get("role") != "admin":
+            return error_response("Unauthorized access!", 403)
         try:
-            # Retrieve query parameters
             page = request.args.get('page', 1, type=int)
             per_page = request.args.get('per_page', 10, type=int)
             sort_by = request.args.get('sort_by', 'username', type=str)
             sort_order = request.args.get('sort_order', 'asc', type=str)
-
-            # Validate sorting parameters
+            
             if sort_by not in SORTABLE_FIELDS:
                 return error_response(f"Invalid sort_by field. Allowed: {SORTABLE_FIELDS}", 400)
             if sort_order not in ['asc', 'desc']:
                 return error_response("Invalid sort_order. Allowed: ['asc', 'desc']", 400)
-
-            # Fetch paginated users
+            
             data = UserService.get_paginated_users(
                 page=page, per_page=per_page, sort_by=sort_by, sort_order=sort_order
             )
-
-            # Prepare response
+            
             response = {
                 "users": users_schema.dump(data["items"]),
                 "total": data["total"],
@@ -296,13 +298,10 @@ def create_user_bp(cache, limiter):
                 "sort_by": sort_by,
                 "sort_order": sort_order
             }
-
             return jsonify(response), 200
         except ValueError as e:
-            # Handle user-level errors (validation, bad input)
             return error_response(str(e), 400)
         except Exception as e:
-            # Handle unexpected errors
             return error_response(f"An unexpected error occurred: {str(e)}", 500)
 
     # ---------------------------

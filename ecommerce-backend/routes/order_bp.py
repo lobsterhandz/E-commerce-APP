@@ -76,10 +76,15 @@ def create_order_bp(cache, limiter):
     def create_order():
         """
         Creates a new order.
+        Only users with role 'user' (i.e. customers) can create orders.
+        Expects a JSON payload with 'customer_id' and 'order_items' (a list).
         """
+        # Enforce that only customers (role "user") can create orders.
+        if g.user.get("role") != "user":
+            return error_response("Only customers can create orders", 403)
         try:
             data = request.get_json()
-            # The order_schema should be updated to expect "order_items" instead of "items"
+            # The OrderSchema expects a key "order_items" (a list of dictionaries)
             validated_data = order_schema.load(data)
             order = OrderService.create_order(**validated_data)
             return jsonify(order_schema.dump(order)), 201

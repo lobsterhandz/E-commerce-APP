@@ -7,6 +7,9 @@ import logging
 # Initialize Logger
 logger = logging.getLogger(__name__)
 
+# Global variable to hold the Limiter instance
+limiter = None
+
 def limiter_setup(app):
     """
     Attach the limiter to the Flask app. Tries to use Redis for storage; if Redis is not available,
@@ -15,6 +18,7 @@ def limiter_setup(app):
     Args:
         app: The Flask app instance.
     """
+    global limiter
     # Disable rate limiting in testing environment
     if os.getenv("FLASK_ENV") == "testing":
         app.config["RATELIMIT_ENABLED"] = False
@@ -35,10 +39,10 @@ def limiter_setup(app):
         except Exception as e:
             app.logger.warning("Redis not available (%s). Falling back to in-memory storage.", str(e))
 
-    # Initialize the Limiter
+    # Initialize the Limiter and assign to global variable
     limiter = Limiter(
         key_func=get_remote_address,
-        default_limits=["10 per minute"],  # Adjust limit as needed
+        default_limits=["10 per minute"],
         storage_uri=storage_uri,
         enabled=app.config.get("RATELIMIT_ENABLED", True)
     )

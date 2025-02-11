@@ -1,5 +1,8 @@
 from marshmallow import Schema, fields, validate, post_dump
-from schemas.order_item_schema import order_item_schema, order_items_schema
+from schemas.order_item_schema import order_item_schema
+
+class OrderSchema(Schema):
+    # ---------------------------
     # Fields
     # ---------------------------
     id = fields.Int(dump_only=True)

@@ -1,5 +1,5 @@
 from marshmallow import Schema, fields, validate, post_dump
-from schemas.order_item_schema import order_item_schema  # Ensure this import path is correct
+from schemas.order_item_schema import OrderItemSchema   # Ensure this import path is correct
 
 class OrderSchema(Schema):
     # ---------------------------

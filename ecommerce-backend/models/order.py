@@ -57,7 +57,7 @@ class Order(db.Model):
                 "name": self.customer.name,
                 "email": self.customer.email
             } if self.customer else None,
-            "items": [item.to_dict() for item in self.items] if self.items else []
+            "order_items": [item.to_dict() for item in self.items]  # Changed key from "items" to "order_items"
         }
 
     # ---------------------------

@@ -5,25 +5,29 @@ from utils.utils import error_response, role_required, jwt_required
 from utils.limiter import limiter
 from flasgger.utils import swag_from
 
-# Allowed sortable fields
-SORTABLE_FIELDS = ['created_at', 'quantity', 'total_price']
+# Allowed sortable fields (removed 'quantity' as it's part of order items)
+SORTABLE_FIELDS = ['created_at', 'total_price']
 
 def create_order_bp(cache):
     """
-    Factory function to create the <blueprint_name> blueprint with a shared cache instance.
+    Factory function to create the orders blueprint with a shared cache instance.
     """
     order_bp = Blueprint("orders", __name__)
+    
     # ---------------------------
     # Create an Order
     # ---------------------------
     @order_bp.route('', methods=['POST'])
-    @limiter.limit("5 per minute")  # Rate limiting
-    @jwt_required  # Requires valid JWT token
-    @role_required('user')  # Restrict to 'user' role
+    @limiter.limit("5 per minute")
+    @jwt_required
+    @role_required('user')
     @swag_from({
         "tags": ["Orders"],
         "summary": "Create a new order",
-        "description": "Creates a new order with the specified details.",
+        "description": (
+            "Creates a new order with the specified details. The payload must include a customer_id and a list of order items. "
+            "Each order item should include product_id, quantity, and price_at_order."
+        ),
         "security": [{"Bearer": []}],
         "parameters": [
             {
@@ -32,11 +36,34 @@ def create_order_bp(cache):
                 "required": True,
                 "schema": {
                     "type": "object",
-                    "required": ["customer_id", "product_id", "quantity"],
+                    "required": ["customer_id", "items"],
                     "properties": {
-                        "customer_id": {"type": "integer", "description": "ID of the customer placing the order."},
-                        "product_id": {"type": "integer", "description": "ID of the product being ordered."},
-                        "quantity": {"type": "integer", "description": "Quantity of the product ordered."}
+                        "customer_id": {
+                            "type": "integer",
+                            "description": "ID of the customer placing the order."
+                        },
+                        "items": {
+                            "type": "array",
+                            "items": {
+                                "type": "object",
+                                "required": ["product_id", "quantity", "price_at_order"],
+                                "properties": {
+                                    "product_id": {
+                                        "type": "integer",
+                                        "description": "ID of the product."
+                                    },
+                                    "quantity": {
+                                        "type": "integer",
+                                        "description": "Quantity of the product ordered."
+                                    },
+                                    "price_at_order": {
+                                        "type": "number",
+                                        "format": "float",
+                                        "description": "Price of the product at the time of the order."
+                                    }
+                                }
+                            }
+                        }
                     }
                 }
             }
@@ -63,10 +90,10 @@ def create_order_bp(cache):
     # Get Paginated Orders
     # ---------------------------
     @order_bp.route('', methods=['GET'])
-    @cache.cached(query_string=True)  # Cache GET requests with query parameters
-    @limiter.limit("10 per minute")  # Rate limiting
-    @jwt_required  # Requires valid JWT token
-    @role_required('admin')  # Admin-only access
+    @cache.cached(query_string=True)
+    @limiter.limit("10 per minute")
+    @jwt_required
+    @role_required('admin')
     @swag_from({
         "tags": ["Orders"],
         "summary": "Retrieve paginated orders",
@@ -94,7 +121,9 @@ def create_order_bp(cache):
                 "in": "query",
                 "type": "string",
                 "required": False,
-                "description": "Field to sort by (default: 'created_at'). Allowed fields: ['created_at', 'status', 'total'].",
+                "description": (
+                    "Field to sort by (default: 'created_at'). Allowed fields: ['created_at', 'total_price']."
+                ),
                 "example": "created_at"
             },
             {
@@ -130,22 +159,46 @@ def create_order_bp(cache):
                                         "example": 1,
                                         "description": "Unique identifier for the order."
                                     },
+                                    "customer_id": {
+                                        "type": "integer",
+                                        "example": 1,
+                                        "description": "ID of the customer."
+                                    },
                                     "created_at": {
                                         "type": "string",
                                         "format": "date-time",
                                         "example": "2025-01-20T10:00:00Z",
-                                        "description": "Timestamp of when the order was created."
+                                        "description": "Timestamp when the order was created."
                                     },
-                                    "status": {
-                                        "type": "string",
-                                        "example": "completed",
-                                        "description": "Status of the order."
-                                    },
-                                    "total": {
+                                    "total_price": {
                                         "type": "number",
                                         "format": "float",
                                         "example": 99.99,
                                         "description": "Total amount of the order."
+                                    },
+                                    "items": {
+                                        "type": "array",
+                                        "items": {
+                                            "type": "object",
+                                            "properties": {
+                                                "product_id": {
+                                                    "type": "integer",
+                                                    "example": 45,
+                                                    "description": "ID of the product."
+                                                },
+                                                "quantity": {
+                                                    "type": "integer",
+                                                    "example": 2,
+                                                    "description": "Quantity ordered."
+                                                },
+                                                "price_at_order": {
+                                                    "type": "number",
+                                                    "format": "float",
+                                                    "example": 49.99,
+                                                    "description": "Price of the product at order time."
+                                                }
+                                            }
+                                        }
                                     }
                                 }
                             }
@@ -176,7 +229,6 @@ def create_order_bp(cache):
             "500": {"description": "Internal server error."}
         }
     })
-
     def get_orders():
         """
         Retrieves paginated orders with optional sorting and metadata.
@@ -238,18 +290,18 @@ def create_order_bp(cache):
                             "example": 123,
                             "description": "Unique identifier of the order."
                         },
+                        "customer_id": {
+                            "type": "integer",
+                            "example": 1,
+                            "description": "ID of the customer who placed the order."
+                        },
                         "created_at": {
                             "type": "string",
                             "format": "date-time",
                             "example": "2025-01-20T10:00:00Z",
                             "description": "Timestamp when the order was created."
                         },
-                        "status": {
-                            "type": "string",
-                            "example": "completed",
-                            "description": "Current status of the order."
-                        },
-                        "total": {
+                        "total_price": {
                             "type": "number",
                             "format": "float",
                             "example": 150.75,
@@ -268,13 +320,13 @@ def create_order_bp(cache):
                                     "quantity": {
                                         "type": "integer",
                                         "example": 2,
-                                        "description": "Quantity of the product in the order."
+                                        "description": "Quantity ordered."
                                     },
-                                    "price": {
+                                    "price_at_order": {
                                         "type": "number",
                                         "format": "float",
                                         "example": 75.38,
-                                        "description": "Price of a single unit of the product."
+                                        "description": "Price of the product at the time of order."
                                     }
                                 }
                             }
@@ -297,7 +349,6 @@ def create_order_bp(cache):
             "500": {"description": "Internal server error."}
         }
     })
-
     def get_order(order_id):
         """
         Retrieve an order by its ID.
@@ -310,6 +361,9 @@ def create_order_bp(cache):
         except Exception as e:
             return error_response(str(e), 500)
 
+    # ---------------------------
+    # Update Order by ID
+    # ---------------------------
     @order_bp.route('/<int:order_id>', methods=['PUT'])
     @limiter.limit("5 per minute")
     @jwt_required
@@ -317,7 +371,10 @@ def create_order_bp(cache):
     @swag_from({
         "tags": ["Orders"],
         "summary": "Update an order by its ID",
-        "description": "Updates the details of an order using its unique ID.",
+        "description": (
+            "Updates the details of an order using its unique ID. "
+            "The payload should include updated order items if applicable."
+        ),
         "security": [{"Bearer": []}],
         "parameters": [
             {
@@ -336,17 +393,6 @@ def create_order_bp(cache):
                     "schema": {
                         "type": "object",
                         "properties": {
-                            "status": {
-                                "type": "string",
-                                "description": "Updated status of the order.",
-                                "example": "shipped"
-                            },
-                            "total": {
-                                "type": "number",
-                                "format": "float",
-                                "description": "Updated total amount for the order.",
-                                "example": 150.75
-                            },
                             "items": {
                                 "type": "array",
                                 "items": {
@@ -359,20 +405,20 @@ def create_order_bp(cache):
                                         },
                                         "quantity": {
                                             "type": "integer",
-                                            "description": "Quantity of the product in the order.",
+                                            "description": "Updated quantity of the product.",
                                             "example": 3
                                         },
-                                        "price": {
+                                        "price_at_order": {
                                             "type": "number",
                                             "format": "float",
-                                            "description": "Updated price of the product.",
+                                            "description": "Updated price of the product at the time of order.",
                                             "example": 50.25
                                         }
                                     }
                                 }
                             }
                         },
-                        "required": ["status", "items"]  # Specify required fields
+                        "required": ["items"]
                     }
                 }
             }
@@ -417,7 +463,6 @@ def create_order_bp(cache):
             "500": {"description": "Internal server error."}
         }
     })
-
     def update_order(order_id):
         """
         Update an order by its ID.
@@ -465,6 +510,5 @@ def create_order_bp(cache):
             return jsonify({"message": "Order deleted successfully"}), 200
         except Exception as e:
             return error_response(str(e), 500)
-
 
     return order_bp

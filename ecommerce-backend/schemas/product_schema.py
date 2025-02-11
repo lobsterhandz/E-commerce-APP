@@ -24,6 +24,8 @@ class ProductSchema(Schema):
         ),
         error_messages={"invalid": "Invalid price format. Use a valid decimal value."}
     )
+    # NEW FIELD: allow category_id to be passed in
+    category_id = fields.Int(required=False)
 
     stock_quantity = fields.Int(
         required=True,

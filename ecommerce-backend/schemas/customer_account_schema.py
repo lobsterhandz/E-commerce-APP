@@ -20,7 +20,7 @@ class CustomerAccountSchema(Schema):
         required=True,
         description="ID of the associated customer."
     )
-
+    password_hash = fields.Str(dump_only=True) 
     created_at = fields.DateTime(dump_only=True)
     updated_at = fields.DateTime(dump_only=True)  # Added updated_at field
     deleted_at = fields.DateTime(dump_only=True)  # Added soft delete support

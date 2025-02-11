@@ -5,8 +5,8 @@ from utils.utils import error_response
 from utils.limiter import limiter
 from flasgger.utils import swag_from
 
+# Allowed sortable fields for shopping cart items.
 SORTABLE_FIELDS = ['quantity', 'subtotal', 'product_id']
-
 
 def create_shopping_cart_item_bp(cache):
     """
@@ -62,7 +62,7 @@ def create_shopping_cart_item_bp(cache):
                             "id": {"type": "integer"},
                             "product_id": {"type": "integer"},
                             "quantity": {"type": "integer"},
-                            "subtotal": {"type": "float"}
+                            "subtotal": {"type": "number", "format": "float"}
                         }
                     }
                 }
@@ -78,13 +78,13 @@ def create_shopping_cart_item_bp(cache):
             sort_by = request.args.get('sort_by', default='quantity', type=str)
             sort_order = request.args.get('sort_order', default='asc', type=str)
 
-            # Validate sort_by parameter
+            # Validate sort parameters
             if sort_by not in SORTABLE_FIELDS:
                 return error_response(f"Invalid sort_by field. Allowed: {SORTABLE_FIELDS}.", 400)
             if sort_order not in ['asc', 'desc']:
                 return error_response("Invalid sort_order value. Allowed: 'asc', 'desc'.", 400)
 
-            # Fetch items using the correct method and apply sorting
+            # Fetch and sort items using the service layer
             items = ShoppingCartItemService.list_items_by_cart(cart_id)
             sorted_items = sorted(
                 items,
@@ -94,7 +94,7 @@ def create_shopping_cart_item_bp(cache):
 
             return jsonify([item.to_dict() for item in sorted_items]), 200
         except Exception as e:
-            return error_response(str(e))
+            return error_response(str(e), 500)
 
     # ---------------------------
     # Add an Item to Cart
@@ -116,8 +116,14 @@ def create_shopping_cart_item_bp(cache):
                     "type": "object",
                     "required": ["product_id", "quantity"],
                     "properties": {
-                        "product_id": {"type": "integer", "description": "ID of the product."},
-                        "quantity": {"type": "integer", "description": "Quantity to add to the cart."}
+                        "product_id": {
+                            "type": "integer",
+                            "description": "ID of the product to add."
+                        },
+                        "quantity": {
+                            "type": "integer",
+                            "description": "Quantity to add to the cart."
+                        }
                     }
                 }
             }
@@ -174,7 +180,10 @@ def create_shopping_cart_item_bp(cache):
                 "schema": {
                     "type": "object",
                     "properties": {
-                        "quantity": {"type": "integer", "description": "Updated quantity for the item."}
+                        "quantity": {
+                            "type": "integer",
+                            "description": "Updated quantity for the item."
+                        }
                     }
                 }
             }
@@ -187,7 +196,7 @@ def create_shopping_cart_item_bp(cache):
         }
     })
     def update_cart_item(cart_id, item_id):
-        """Update an item in a shopping cart."""
+        """Update an item in the shopping cart."""
         try:
             data = request.get_json()
             item = ShoppingCartItemService.update_item_quantity(
@@ -233,7 +242,7 @@ def create_shopping_cart_item_bp(cache):
         }
     })
     def remove_cart_item(cart_id, item_id):
-        """Remove an item from a shopping cart."""
+        """Remove an item from the shopping cart."""
         try:
             ShoppingCartItemService.remove_item(cart_id=cart_id, item_id=item_id)
             return jsonify({"message": "Item removed successfully."}), 200

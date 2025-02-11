@@ -4,12 +4,13 @@ from flask_jwt_extended import jwt_required, get_jwt_identity
 from utils.utils import error_response
 from utils.limiter import limiter
 from flasgger.utils import swag_from
-# Allowed sortable fields
-SORTABLE_FIELDS = ['name', 'price']
+
+# Allowed sortable fields for cart items.
+SORTABLE_FIELDS = ['quantity', 'subtotal']
 
 def create_shopping_cart_bp(cache):
     """
-    Factory function to create the <blueprint_name> blueprint with a shared cache instance.
+    Factory function to create the shopping cart blueprint with a shared cache instance.
     """
     shopping_cart_bp = Blueprint('shopping_cart', __name__)
 
@@ -30,9 +31,9 @@ def create_shopping_cart_bp(cache):
                 "name": "sort_by",
                 "in": "query",
                 "type": "string",
-                "description": f"Field to sort by. Allowed: {SORTABLE_FIELDS}. Default: 'name'.",
+                "description": f"Field to sort by. Allowed: {SORTABLE_FIELDS}. Default: 'quantity'.",
                 "required": False,
-                "example": "name"
+                "example": "quantity"
             },
             {
                 "name": "sort_order",
@@ -70,15 +71,15 @@ def create_shopping_cart_bp(cache):
                             "items": {
                                 "type": "object",
                                 "properties": {
-                                    "product_id": {"type": "integer"},
-                                    "quantity": {"type": "integer"},
-                                    "subtotal": {"type": "float"}
+                                    "product_id": {"type": "integer", "example": 45},
+                                    "quantity": {"type": "integer", "example": 2},
+                                    "subtotal": {"type": "number", "format": "float", "example": 49.99}
                                 }
                             }
                         },
-                        "total_items": {"type": "integer", "description": "Total number of items in the cart."},
-                        "page": {"type": "integer", "description": "Current page number."},
-                        "per_page": {"type": "integer", "description": "Number of items per page."}
+                        "total_items": {"type": "integer", "description": "Total number of items in the cart.", "example": 5},
+                        "page": {"type": "integer", "description": "Current page number.", "example": 1},
+                        "per_page": {"type": "integer", "description": "Number of items per page.", "example": 10}
                     }
                 }
             },
@@ -90,53 +91,43 @@ def create_shopping_cart_bp(cache):
         """Fetch the current user's shopping cart with pagination and sorting."""
         try:
             customer_id = get_jwt_identity()
-            sort_by = request.args.get('sort_by', 'name', type=str)
+            sort_by = request.args.get('sort_by', 'quantity', type=str)
             sort_order = request.args.get('sort_order', 'asc', type=str)
             page = request.args.get('page', 1, type=int)
             per_page = request.args.get('per_page', 10, type=int)
 
-            # Validate sort_by and sort_order
             if sort_by not in SORTABLE_FIELDS:
                 return error_response(f"Invalid sort_by field. Allowed: {SORTABLE_FIELDS}.", 400)
             if sort_order not in ['asc', 'desc']:
                 return error_response("Invalid sort_order value. Allowed: 'asc', 'desc'.", 400)
 
-            # Fetch cart and sort items
             cart = ShoppingCartService.get_cart_by_customer(customer_id)
             if not cart:
                 return error_response("Shopping cart not found.", 404)
 
-            items = sorted(
+            # Sort items
+            sorted_items = sorted(
                 cart.items,
                 key=lambda x: getattr(x, sort_by),
                 reverse=(sort_order == 'desc')
             )
-
-            # Paginate items
-            total_items = len(items)
+            total_items = len(sorted_items)
             start = (page - 1) * per_page
             end = start + per_page
-            paginated_items = items[start:end]
+            paginated_items = sorted_items[start:end]
 
-            # Prepare the response
-            return jsonify({
-                "items": [
-                    {
-                        "product_id": item.product_id,
-                        "quantity": item.quantity,
-                        "subtotal": item.subtotal
-                    } for item in paginated_items
-                ],
+            response_data = {
+                "items": [item.to_dict() for item in paginated_items],
                 "total_items": total_items,
                 "page": page,
                 "per_page": per_page
-            }), 200
+            }
+            return jsonify(response_data), 200
         except Exception as e:
             return error_response(str(e), 500)
 
-
     # ---------------------------
-    # Add Item to Shopping Cart
+    # Add Item to Cart
     # ---------------------------
     @shopping_cart_bp.route('', methods=['POST'])
     @jwt_required()
@@ -144,7 +135,7 @@ def create_shopping_cart_bp(cache):
     @swag_from({
         "tags": ["Shopping Cart"],
         "summary": "Add an item to the cart",
-        "description": "Adds a product to the shopping cart or updates its quantity.",
+        "description": "Adds a product to the shopping cart or updates its quantity if it already exists.",
         "security": [{"Bearer": []}],
         "parameters": [
             {
@@ -156,7 +147,7 @@ def create_shopping_cart_bp(cache):
                     "required": ["product_id", "quantity"],
                     "properties": {
                         "product_id": {"type": "integer", "description": "ID of the product to add."},
-                        "quantity": {"type": "integer", "description": "Quantity of the product to add."}
+                        "quantity": {"type": "integer", "description": "Quantity to add to the cart."}
                     }
                 }
             }
@@ -167,81 +158,116 @@ def create_shopping_cart_bp(cache):
             "500": {"description": "Internal server error."}
         }
     })
-    def add_item():
+    def add_item_to_cart():
         """Add an item to the shopping cart."""
         try:
             customer_id = get_jwt_identity()
             data = request.get_json()
-            item = ShoppingCartService.add_item_to_cart(
-                customer_id, data['product_id'], data['quantity']
+            item = ShoppingCartItemService.add_item_to_cart(
+                customer_id=customer_id,
+                product_id=data['product_id'],
+                quantity=data['quantity']
             )
-            return jsonify({
-                "product_id": item.product_id,
-                "quantity": item.quantity,
-                "subtotal": item.subtotal
-            }), 201
+            return jsonify(item.to_dict()), 201
         except Exception as e:
             return error_response(str(e))
 
     # ---------------------------
-    # Remove Item from Shopping Cart
+    # Update an Item in Cart
     # ---------------------------
-    @shopping_cart_bp.route('/<int:product_id>', methods=['DELETE'])
+    @shopping_cart_bp.route('/<int:cart_id>/items/<int:item_id>', methods=['PUT'])
     @jwt_required()
     @limiter.limit("5 per minute")
     @swag_from({
-        "tags": ["Shopping Cart"],
-        "summary": "Remove an item from the cart",
-        "description": "Removes a product from the shopping cart by its product ID.",
+        "tags": ["Shopping Cart Items"],
+        "summary": "Update an item in a shopping cart",
+        "description": "Updates the quantity of a specific item in a shopping cart.",
         "security": [{"Bearer": []}],
         "parameters": [
             {
-                "name": "product_id",
+                "name": "cart_id",
                 "in": "path",
                 "type": "integer",
-                "description": "ID of the product to remove from the cart.",
-                "required": True
+                "required": True,
+                "description": "ID of the shopping cart."
+            },
+            {
+                "name": "item_id",
+                "in": "path",
+                "type": "integer",
+                "required": True,
+                "description": "ID of the shopping cart item."
+            },
+            {
+                "in": "body",
+                "name": "body",
+                "required": True,
+                "schema": {
+                    "type": "object",
+                    "properties": {
+                        "quantity": {"type": "integer", "description": "Updated quantity for the item."}
+                    }
+                }
+            }
+        ],
+        "responses": {
+            "200": {"description": "Item updated successfully."},
+            "400": {"description": "Validation error or invalid input."},
+            "404": {"description": "Item not found."},
+            "500": {"description": "Internal server error."}
+        }
+    })
+    def update_cart_item(cart_id, item_id):
+        """Update an item in the shopping cart."""
+        try:
+            data = request.get_json()
+            item = ShoppingCartItemService.update_item_quantity(
+                cart_id=cart_id,
+                item_id=item_id,
+                new_quantity=data['quantity']
+            )
+            return jsonify(item.to_dict()), 200
+        except Exception as e:
+            return error_response(str(e))
+
+    # ---------------------------
+    # Remove an Item from Cart
+    # ---------------------------
+    @shopping_cart_bp.route('/<int:cart_id>/items/<int:item_id>', methods=['DELETE'])
+    @jwt_required()
+    @limiter.limit("5 per minute")
+    @swag_from({
+        "tags": ["Shopping Cart Items"],
+        "summary": "Remove an item from a shopping cart",
+        "description": "Removes a specific item from a shopping cart.",
+        "security": [{"Bearer": []}],
+        "parameters": [
+            {
+                "name": "cart_id",
+                "in": "path",
+                "type": "integer",
+                "required": True,
+                "description": "ID of the shopping cart."
+            },
+            {
+                "name": "item_id",
+                "in": "path",
+                "type": "integer",
+                "required": True,
+                "description": "ID of the shopping cart item to remove."
             }
         ],
         "responses": {
             "200": {"description": "Item removed successfully."},
-            "404": {"description": "Item not found in the cart."},
+            "404": {"description": "Item not found."},
             "500": {"description": "Internal server error."}
         }
     })
-    def remove_item(product_id):
+    def remove_cart_item(cart_id, item_id):
         """Remove an item from the shopping cart."""
         try:
-            customer_id = get_jwt_identity()
-            ShoppingCartService.remove_item_from_cart(customer_id, product_id)
+            ShoppingCartItemService.remove_item(cart_id=cart_id, item_id=item_id)
             return jsonify({"message": "Item removed successfully."}), 200
-        except Exception as e:
-            return error_response(str(e))
-
-    # ---------------------------
-    # Checkout Shopping Cart
-    # ---------------------------
-    @shopping_cart_bp.route('/checkout', methods=['POST'])
-    @jwt_required()
-    @limiter.limit("2 per minute")
-    @swag_from({
-        "tags": ["Shopping Cart"],
-        "summary": "Checkout the shopping cart",
-        "description": "Finalizes the shopping cart and converts it into an order.",
-        "security": [{"Bearer": []}],
-        "responses": {
-            "200": {"description": "Checkout successful."},
-            "400": {"description": "Validation error or invalid cart state."},
-            "500": {"description": "Internal server error."}
-        }
-    })
-
-    def checkout():
-        """Checkout the shopping cart."""
-        try:
-            customer_id = get_jwt_identity()
-            ShoppingCartService.checkout_cart(customer_id)
-            return jsonify({"message": "Checkout successful."}), 200
         except Exception as e:
             return error_response(str(e))
 

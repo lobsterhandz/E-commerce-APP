@@ -1,13 +1,12 @@
 from models import db, User
 from werkzeug.security import generate_password_hash, check_password_hash
 
-
 class UserService:
     # Allowed fields for sorting
     SORTABLE_FIELDS = ['username', 'email']
 
     # ---------------------------
-    # Create a user
+    # Create a User
     # ---------------------------
     @staticmethod
     def create_user(username, email, password, role):
@@ -18,6 +17,7 @@ class UserService:
             username (str): Username of the user.
             email (str): Email of the user.
             password (str): Password for the user.
+            role (str): Role of the user (e.g., 'admin', 'user', etc.).
 
         Returns:
             User: Created user object.
@@ -26,7 +26,6 @@ class UserService:
             ValueError: If validation fails or creation error occurs.
         """
         try:
-            # Validate required fields
             if not username or not email or not password:
                 raise ValueError("Username, email, and password are required.")
 
@@ -39,7 +38,7 @@ class UserService:
             # Hash the password
             hashed_password = generate_password_hash(password)
 
-            # Create a new user
+            # Create a new user instance
             new_user = User(username=username, email=email, password_hash=hashed_password, role=role)
             db.session.add(new_user)
             db.session.commit()
@@ -49,7 +48,7 @@ class UserService:
             raise ValueError(f"Error creating user: {str(e)}")
 
     # ---------------------------
-    # Get paginated users
+    # Get Paginated Users
     # ---------------------------
     @staticmethod
     def get_paginated_users(page=1, per_page=10, sort_by='username', sort_order='asc', include_meta=True):
@@ -70,25 +69,20 @@ class UserService:
             ValueError: If query or input validation fails.
         """
         try:
-            # Input validation
-            page = max(1, int(page))  # Ensure page >= 1
-            per_page = min(max(1, int(per_page)), 100)  # Limit 1 <= per_page <= 100
+            page = max(1, int(page))
+            per_page = min(max(1, int(per_page)), 100)
 
-            # Validate sorting field
             if sort_by not in UserService.SORTABLE_FIELDS:
                 raise ValueError(f"Invalid sort_by field. Allowed: {UserService.SORTABLE_FIELDS}")
 
-            # Determine sort order
             sort_column = getattr(User, sort_by)
             if sort_order.lower() == 'desc':
                 sort_column = sort_column.desc()
 
-            # Query with pagination and sorting
             pagination = User.query.order_by(sort_column).paginate(
                 page=page, per_page=per_page, error_out=False
             )
 
-            # Prepare response
             response = {"items": pagination.items}
             if include_meta:
                 response.update({
@@ -103,7 +97,7 @@ class UserService:
             raise ValueError(f"Error retrieving paginated users: {str(e)}")
 
     # ---------------------------
-    # Get user by ID
+    # Get User by ID
     # ---------------------------
     @staticmethod
     def get_user_by_id(user_id):
@@ -128,7 +122,7 @@ class UserService:
             raise ValueError(f"Error retrieving user: {str(e)}")
 
     # ---------------------------
-    # Update a user
+    # Update a User
     # ---------------------------
     @staticmethod
     def update_user(user_id, username=None, email=None, password=None):
@@ -152,7 +146,6 @@ class UserService:
             if not user:
                 raise ValueError("User not found.")
 
-            # Update fields if provided
             if username:
                 if User.query.filter(User.username == username, User.id != user_id).first():
                     raise ValueError("Username already exists.")
@@ -164,7 +157,8 @@ class UserService:
                 user.email = email
 
             if password:
-                user.password = generate_password_hash(password)
+                # Use the model's password management method if available.
+                user.set_password(password)
 
             db.session.commit()
             return user
@@ -173,7 +167,7 @@ class UserService:
             raise ValueError(f"Error updating user: {str(e)}")
 
     # ---------------------------
-    # Delete a user
+    # Delete a User
     # ---------------------------
     @staticmethod
     def delete_user(user_id):
@@ -187,7 +181,7 @@ class UserService:
             bool: True if deletion is successful.
 
         Raises:
-            ValueError: If user not found or delete fails.
+            ValueError: If user not found or deletion fails.
         """
         try:
             user = User.query.get(user_id)
@@ -201,21 +195,24 @@ class UserService:
             raise ValueError(f"Error deleting user: {str(e)}")
 
     # ---------------------------
-    # Authenticate a user
+    # Authenticate a User
     # ---------------------------
     @staticmethod
     def authenticate_user(username, password):
         """
         Authenticate a user by username and password.
+
         Args:
             username (str): The username of the user.
             password (str): The password of the user.
+
         Returns:
             User: The authenticated user object if successful.
+
         Raises:
             ValueError: If the username or password is invalid.
         """
         user = User.query.filter_by(username=username).first()
-        if user and check_password_hash(user.password_hash, password):  # Use password_hash
+        if user and check_password_hash(user.password_hash, password):
             return user
         raise ValueError("Invalid username or password")

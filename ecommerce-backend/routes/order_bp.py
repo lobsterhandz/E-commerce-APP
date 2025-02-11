@@ -1,11 +1,10 @@
-from flask import Blueprint, request, jsonify
+from flask import Blueprint, request, jsonify, current_app
 from services.order_service import OrderService
 from schemas.order_schema import order_schema, orders_schema
 from utils.utils import error_response, role_required, jwt_required
-from utils.limiter import create_limiter
 from flasgger.utils import swag_from
 
-# Allowed sortable fields (removed 'quantity' as it's part of order items)
+# Allowed sortable fields (removed 'quantity' since that's within order items)
 SORTABLE_FIELDS = ['created_at', 'total_price']
 
 def create_order_bp(cache, limiter):
@@ -36,13 +35,13 @@ def create_order_bp(cache, limiter):
                 "required": True,
                 "schema": {
                     "type": "object",
-                    "required": ["customer_id", "items"],
+                    "required": ["customer_id", "order_items"],
                     "properties": {
                         "customer_id": {
                             "type": "integer",
                             "description": "ID of the customer placing the order."
                         },
-                        "items": {
+                        "order_items": {
                             "type": "array",
                             "items": {
                                 "type": "object",
@@ -80,10 +79,12 @@ def create_order_bp(cache, limiter):
         """
         try:
             data = request.get_json()
+            # The order_schema should be updated to expect "order_items" instead of "items"
             validated_data = order_schema.load(data)
             order = OrderService.create_order(**validated_data)
             return jsonify(order_schema.dump(order)), 201
         except Exception as e:
+            current_app.logger.error(f"Error creating order: {str(e)}")
             return error_response(str(e))
     
     # ---------------------------
@@ -154,75 +155,28 @@ def create_order_bp(cache, limiter):
                             "items": {
                                 "type": "object",
                                 "properties": {
-                                    "id": {
-                                        "type": "integer",
-                                        "example": 1,
-                                        "description": "Unique identifier for the order."
-                                    },
-                                    "customer_id": {
-                                        "type": "integer",
-                                        "example": 1,
-                                        "description": "ID of the customer."
-                                    },
-                                    "created_at": {
-                                        "type": "string",
-                                        "format": "date-time",
-                                        "example": "2025-01-20T10:00:00Z",
-                                        "description": "Timestamp when the order was created."
-                                    },
-                                    "total_price": {
-                                        "type": "number",
-                                        "format": "float",
-                                        "example": 99.99,
-                                        "description": "Total amount of the order."
-                                    },
-                                    "items": {
+                                    "id": {"type": "integer", "example": 1, "description": "Unique identifier for the order."},
+                                    "customer_id": {"type": "integer", "example": 1, "description": "ID of the customer."},
+                                    "created_at": {"type": "string", "format": "date-time", "example": "2025-01-20T10:00:00Z", "description": "Timestamp when the order was created."},
+                                    "total_price": {"type": "number", "format": "float", "example": 99.99, "description": "Total amount of the order."},
+                                    "order_items": {  # Reflecting the new key
                                         "type": "array",
                                         "items": {
                                             "type": "object",
                                             "properties": {
-                                                "product_id": {
-                                                    "type": "integer",
-                                                    "example": 45,
-                                                    "description": "ID of the product."
-                                                },
-                                                "quantity": {
-                                                    "type": "integer",
-                                                    "example": 2,
-                                                    "description": "Quantity ordered."
-                                                },
-                                                "price_at_order": {
-                                                    "type": "number",
-                                                    "format": "float",
-                                                    "example": 49.99,
-                                                    "description": "Price of the product at order time."
-                                                }
+                                                "product_id": {"type": "integer", "example": 45, "description": "ID of the product."},
+                                                "quantity": {"type": "integer", "example": 2, "description": "Quantity ordered."},
+                                                "price_at_order": {"type": "number", "format": "float", "example": 49.99, "description": "Price of the product at order time."}
                                             }
                                         }
                                     }
                                 }
                             }
                         },
-                        "total": {
-                            "type": "integer",
-                            "example": 100,
-                            "description": "Total number of orders."
-                        },
-                        "pages": {
-                            "type": "integer",
-                            "example": 10,
-                            "description": "Total number of pages."
-                        },
-                        "page": {
-                            "type": "integer",
-                            "example": 1,
-                            "description": "Current page number."
-                        },
-                        "per_page": {
-                            "type": "integer",
-                            "example": 10,
-                            "description": "Number of records per page."
-                        }
+                        "total": {"type": "integer", "example": 100, "description": "Total number of orders."},
+                        "pages": {"type": "integer", "example": 10, "description": "Total number of pages."},
+                        "page": {"type": "integer", "example": 1, "description": "Current page number."},
+                        "per_page": {"type": "integer", "example": 10, "description": "Number of records per page."}
                     }
                 }
             },
@@ -252,7 +206,6 @@ def create_order_bp(cache, limiter):
             response = {"orders": orders_schema.dump(data["items"])}
             if include_meta:
                 response.update({k: v for k, v in data.items() if k != "items"})
-
             return jsonify(response), 200
         except Exception as e:
             return error_response(str(e), 500)
@@ -285,67 +238,25 @@ def create_order_bp(cache, limiter):
                 "schema": {
                     "type": "object",
                     "properties": {
-                        "id": {
-                            "type": "integer",
-                            "example": 123,
-                            "description": "Unique identifier of the order."
-                        },
-                        "customer_id": {
-                            "type": "integer",
-                            "example": 1,
-                            "description": "ID of the customer who placed the order."
-                        },
-                        "created_at": {
-                            "type": "string",
-                            "format": "date-time",
-                            "example": "2025-01-20T10:00:00Z",
-                            "description": "Timestamp when the order was created."
-                        },
-                        "total_price": {
-                            "type": "number",
-                            "format": "float",
-                            "example": 150.75,
-                            "description": "Total amount for the order."
-                        },
-                        "items": {
+                        "id": {"type": "integer", "example": 123, "description": "Unique identifier of the order."},
+                        "customer_id": {"type": "integer", "example": 1, "description": "ID of the customer who placed the order."},
+                        "created_at": {"type": "string", "format": "date-time", "example": "2025-01-20T10:00:00Z", "description": "Timestamp when the order was created."},
+                        "total_price": {"type": "number", "format": "float", "example": 150.75, "description": "Total amount for the order."},
+                        "order_items": {  # Reflect the new key
                             "type": "array",
                             "items": {
                                 "type": "object",
                                 "properties": {
-                                    "product_id": {
-                                        "type": "integer",
-                                        "example": 45,
-                                        "description": "ID of the product."
-                                    },
-                                    "quantity": {
-                                        "type": "integer",
-                                        "example": 2,
-                                        "description": "Quantity ordered."
-                                    },
-                                    "price_at_order": {
-                                        "type": "number",
-                                        "format": "float",
-                                        "example": 75.38,
-                                        "description": "Price of the product at the time of order."
-                                    }
+                                    "product_id": {"type": "integer", "example": 45, "description": "ID of the product."},
+                                    "quantity": {"type": "integer", "example": 2, "description": "Quantity of the product in the order."},
+                                    "price_at_order": {"type": "number", "format": "float", "example": 75.38, "description": "Price of a single unit of the product."}
                                 }
                             }
                         }
                     }
                 }
             },
-            "404": {
-                "description": "Order not found.",
-                "schema": {
-                    "type": "object",
-                    "properties": {
-                        "error": {
-                            "type": "string",
-                            "example": "Order with ID 123 not found."
-                        }
-                    }
-                }
-            },
+            "404": {"description": "Order not found."},
             "500": {"description": "Internal server error."}
         }
     })
@@ -393,7 +304,7 @@ def create_order_bp(cache, limiter):
                     "schema": {
                         "type": "object",
                         "properties": {
-                            "items": {
+                            "order_items": {  # New key for updating items
                                 "type": "array",
                                 "items": {
                                     "type": "object",
@@ -405,20 +316,20 @@ def create_order_bp(cache, limiter):
                                         },
                                         "quantity": {
                                             "type": "integer",
-                                            "description": "Updated quantity of the product.",
+                                            "description": "Quantity of the product in the order.",
                                             "example": 3
                                         },
                                         "price_at_order": {
                                             "type": "number",
                                             "format": "float",
-                                            "description": "Updated price of the product at the time of order.",
+                                            "description": "Updated price of the product.",
                                             "example": 50.25
                                         }
                                     }
                                 }
                             }
                         },
-                        "required": ["items"]
+                        "required": ["order_items"]
                     }
                 }
             }
@@ -469,6 +380,7 @@ def create_order_bp(cache, limiter):
         """
         try:
             data = request.get_json()
+            # Load and validate data with partial=True
             validated_data = order_schema.load(data, partial=True)
             order = OrderService.update_order(order_id, **validated_data)
             return jsonify(order_schema.dump(order)), 200

@@ -100,11 +100,20 @@ def role_required(required_role):
             if not token:
                 return error_response("Token is missing!", 403)
             try:
-                token = token.split(" ")[1]
+                parts = token.split(" ")
+                if len(parts) != 2:
+                    return error_response("Invalid token format.", 403)
+                token = parts[1]
                 payload = decode_token(token)
-                if isinstance(payload, str):  # Check if payload is an error message
+                if isinstance(payload, str):
                     return error_response(payload, 403)
-                user_role = payload['role']
+                user_role = payload.get('role')
+                # Debug logging for role check
+                current_app = request.environ.get("flask.app")
+                if current_app:
+                    current_app.logger.info(f"Role check: user role '{user_role}', required '{required_role}'")
+                else:
+                    logger.info(f"Role check: user role '{user_role}', required '{required_role}'")
                 if ROLE_HIERARCHY.get(user_role, 0) < ROLE_HIERARCHY.get(required_role, 0):
                     logger.warning(f"Unauthorized role: {user_role}")
                     return error_response("Unauthorized access!", 403)
@@ -114,6 +123,7 @@ def role_required(required_role):
             return f(*args, **kwargs)
         return decorated_function
     return decorator
+
 
 
 # ---------------------------

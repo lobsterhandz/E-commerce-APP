@@ -58,7 +58,6 @@ def test_create_product(client, auth_tokens):
     assert response.status_code == 201, f"Expected 201 but got {response.status_code}"
     data = response.get_json()
     assert data["name"] == "New Product", "Product name does not match"
-    # Ensure the created product contains an 'id'
     assert "id" in data, "Created product does not contain 'id'"
 
 def test_update_product(client, auth_tokens):
@@ -118,7 +117,7 @@ def test_delete_product(client, auth_tokens):
     assert "id" in product_data, "Created product does not contain 'id'"
     product_id = product_data["id"]
 
-    # Delete the product
+    # Delete the product using admin token
     delete_resp = client.delete(f"/products/{product_id}", headers=headers)
     assert delete_resp.status_code == 200, f"Expected 200 but got {delete_resp.status_code}"
     delete_msg = delete_resp.get_json()["message"]
@@ -132,14 +131,19 @@ def test_customer_cannot_delete_product(client, auth_tokens):
     """
     Ensure customers cannot delete products.
     """
-    headers={"Authorization": auth_tokens["admin"]}
-    # Dynamically create a product for this test
-    create_resp = client.post("/products", json={"name": "CannotDelete", "price": 30.00, "stock_quantity": 10, "category_id": 1}, headers=auth_tokens["admin"])
+    # Create the product using admin token
+    create_resp = client.post(
+        "/products",
+        json={"name": "CannotDelete", "price": 30.00, "stock_quantity": 10, "category_id": 1},
+        headers={"Authorization": auth_tokens["admin"]}
+    )
     assert create_resp.status_code == 201, "Failed to create product for customer delete test"
     product_data = create_resp.get_json()
     assert "id" in product_data, "Created product does not contain 'id'"
     product_id = product_data["id"]
 
+    # Attempt deletion using customer token
+    headers = {"Authorization": auth_tokens["customer"]}
     response = client.delete(f"/products/{product_id}", headers=headers)
     assert response.status_code == 403, "Customer should not be allowed to delete a product"
 
@@ -151,8 +155,9 @@ def test_admin_can_list_users(client, auth_tokens):
     response = client.get("/users", headers=headers)
     assert response.status_code == 200, f"Expected 200 but got {response.status_code}"
     data = response.get_json()
-    assert "users" in data, "Response does not contain 'users' key"  # ✅ Fix
-    assert isinstance(data["users"], list), "Users endpoint did not return a list"  # ✅ Fix
+    # Expect a paginated response containing a key "users" (adjust if your API returns a different structure)
+    assert "users" in data, "Response does not contain 'users' key"
+    assert isinstance(data["users"], list), "Users endpoint did not return a list"
 
 def test_customer_cannot_list_users(client, auth_tokens):
     """
@@ -169,11 +174,18 @@ def test_create_order(client, auth_tokens):
     headers = {"Authorization": auth_tokens["customer"]}
     payload = {
         "customer_id": 1,
-        "total_price": 99.99,
-        "items": [{"product_id": 1, "quantity": 2, "price_at_order": 49.99}]
+        "order_items": [   # Using 'order_items' to match the API's expected input
+            {
+                "product_id": 1,
+                "quantity": 2,
+                "price_at_order": 99.99
+            }
+        ]
     }
     response = client.post("/orders", json=payload, headers=headers)
     assert response.status_code == 201, f"Expected 201 but got {response.status_code}"
+    data = response.get_json()
+    assert "order_id" in data, "Order response missing 'order_id'"
 
 def test_admin_cannot_create_order(client, auth_tokens):
     """
@@ -182,7 +194,6 @@ def test_admin_cannot_create_order(client, auth_tokens):
     headers = {"Authorization": auth_tokens["admin"]}
     payload = {
         "customer_id": 1,
-        "total_price": 99.99,
         "items": [{"product_id": 2, "quantity": 1, "price_at_order": 99.99}]
     }
     response = client.post("/orders", json=payload, headers=headers)

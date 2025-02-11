@@ -11,7 +11,7 @@ class OrderSchema(Schema):
         error_messages={"required": "Customer ID is required."}
     )
     # Nested list of order items:
-    items = fields.Nested(order_item_schema, many=True, required=True,
+    order_items = fields.Nested(order_item_schema, many=True, required=True,
                           error_messages={"required": "Order items are required."})
     total_price = fields.Float(dump_only=True)
     created_at = fields.DateTime(dump_only=True)

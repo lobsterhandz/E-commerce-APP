@@ -8,7 +8,7 @@ from flasgger.utils import swag_from
 # Allowed sortable fields for shopping cart items.
 SORTABLE_FIELDS = ['quantity', 'subtotal', 'product_id']
 
-def create_shopping_cart_item_bp(cache):
+def create_shopping_cart_item_bp(cache, limiter):
     """
     Factory function to create the shopping cart item blueprint with a shared cache instance.
     """

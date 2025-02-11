@@ -8,7 +8,7 @@ from flasgger.utils import swag_from
 # Allowed sortable fields
 SORTABLE_FIELDS = ['name']
 
-def create_category_bp(cache):
+def create_category_bp(cache, limiter):
     """
     Factory function to create the category blueprint with a shared cache instance.
     """

@@ -8,7 +8,7 @@ from flasgger.utils import swag_from
 
 SORTABLE_FIELDS = CustomerAccountService.SORTABLE_FIELDS
 
-def create_customer_account_bp(cache):
+def create_customer_account_bp(cache, limiter):
     """
     Factory function to create the customer accounts blueprint with a shared cache instance.
     """

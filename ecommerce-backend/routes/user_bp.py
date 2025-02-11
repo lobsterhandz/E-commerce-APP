@@ -11,7 +11,7 @@ from services.user_service import UserService
 SORTABLE_FIELDS = ['username', 'created_at']
 
 
-def create_user_bp(cache):
+def create_user_bp(cache, limiter):
     """
     Factory function to create the user blueprint with a shared cache instance.
     """

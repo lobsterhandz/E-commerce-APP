@@ -124,15 +124,15 @@ def create_app(config_name="development"):
     Swagger(app, config=swagger_config, template=swagger_template)
 
     # Register blueprints
-    app.register_blueprint(create_customer_bp(cache_manager.cache), url_prefix="/customers")
-    app.register_blueprint(create_customer_account_bp(cache_manager.cache), url_prefix="/customer_accounts")
-    app.register_blueprint(create_product_bp(cache_manager.cache), url_prefix="/products")
-    app.register_blueprint(create_order_bp(cache_manager.cache), url_prefix="/orders")
-    app.register_blueprint(create_order_item_bp(cache_manager.cache), url_prefix="/order_items")
-    app.register_blueprint(create_shopping_cart_bp(cache_manager.cache), url_prefix="/shopping_cart")
-    app.register_blueprint(create_shopping_cart_item_bp(cache_manager.cache), url_prefix="/shopping_cart_items")
-    app.register_blueprint(create_user_bp(cache_manager.cache), url_prefix="/users")
-    app.register_blueprint(create_category_bp(cache_manager.cache), url_prefix="/categories")
+    app.register_blueprint(create_customer_bp(cache_manager.cache, limiter), url_prefix="/customers")
+    app.register_blueprint(create_customer_account_bp(cache_manager.cache, limiter), url_prefix="/customer_accounts")
+    app.register_blueprint(create_product_bp(cache_manager.cache, limiter), url_prefix="/products")
+    app.register_blueprint(create_order_bp(cache_manager.cache, limiter), url_prefix="/orders")
+    app.register_blueprint(create_order_item_bp(cache_manager.cache, limiter), url_prefix="/order_items")
+    app.register_blueprint(create_shopping_cart_bp(cache_manager.cache, limiter), url_prefix="/shopping_cart")
+    app.register_blueprint(create_shopping_cart_item_bp(cache_manager.cache, limiter), url_prefix="/shopping_cart_items")
+    app.register_blueprint(create_user_bp(cache_manager.cache, limiter), url_prefix="/users")
+    app.register_blueprint(create_category_bp(cache_manager.cache, limiter), url_prefix="/categories")
 
     @app.route("/health", methods=["GET"])
     def health_check():

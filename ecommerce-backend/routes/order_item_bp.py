@@ -8,7 +8,7 @@ from flasgger.utils import swag_from
 # Allowed sortable fields
 SORTABLE_FIELDS = ['quantity', 'price_at_order', 'subtotal']
 
-def create_order_item_bp(cache):
+def create_order_item_bp(cache, limiter):
     """
     Factory function to create the order items blueprint with a shared cache instance.
     """

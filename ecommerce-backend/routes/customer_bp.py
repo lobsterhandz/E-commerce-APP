@@ -9,7 +9,7 @@ from flasgger.utils import swag_from
 # Allowed sortable fields
 SORTABLE_FIELDS = ['name', 'email', 'phone']
 
-def create_customer_bp(cache):
+def create_customer_bp(cache, limiter):
     """
     Factory function to create the customers blueprint with dependency injection for cache.
     """

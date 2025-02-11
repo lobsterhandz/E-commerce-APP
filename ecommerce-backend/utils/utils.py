@@ -1,7 +1,7 @@
 import jwt
 import logging
 from datetime import datetime, timezone, timedelta
-from flask import request, jsonify, g
+from flask import request, jsonify, g, current_app
 from functools import wraps
 from config import Config
 

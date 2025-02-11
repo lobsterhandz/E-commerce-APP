@@ -29,7 +29,6 @@ jobs:
         uses: actions/setup-python@v4
         with:
           python-version: "3.9"
-        # Note: 'working-directory' can be set later in run steps if needed.
 
       - name: Create and Activate Virtual Environment
         working-directory: ecommerce-backend
@@ -45,7 +44,7 @@ jobs:
           pip install --upgrade pip
           pip install -r requirements.txt
 
-            - name: Apply Migrations
+      - name: Apply Migrations
         working-directory: ecommerce-backend
         env:
           FLASK_APP: app

@@ -1,4 +1,4 @@
-from flask import Blueprint, request, jsonify
+from flask import Blueprint, request, jsonify, g, current_app
 from flask_jwt_extended import jwt_required
 from utils.utils import encode_token, role_required, error_response
 from utils.limiter import create_limiter
@@ -247,6 +247,7 @@ def create_user_bp(cache, limiter):
     @user_bp.route('', methods=['GET'])
     @cache.cached(query_string=True)
     @limiter.limit("10 per minute")
+    @jwt_required()
     @role_required('admin')
     @swag_from({
         "tags": ["Users"],
@@ -254,10 +255,10 @@ def create_user_bp(cache, limiter):
         "description": "Lists all users with pagination and sorting.",
         "security": [{"Bearer": []}],
         "parameters": [
-            {"name": "page", "in": "query", "required": False, "schema": {"type": "integer"}, "description": "Page number (default: 1)."},
-            {"name": "per_page", "in": "query", "required": False, "schema": {"type": "integer"}, "description": "Items per page (default: 10)."},
-            {"name": "sort_by", "in": "query", "required": False, "schema": {"type": "string"}, "description": "Field to sort by."},
-            {"name": "sort_order", "in": "query", "required": False, "schema": {"type": "string"}, "description": "Sort order ('asc' or 'desc')."}
+            {"name": "page", "in": "query", "schema": {"type": "integer"}, "description": "Page number (default: 1)."},
+            {"name": "per_page", "in": "query", "schema": {"type": "integer"}, "description": "Items per page (default: 10)."},
+            {"name": "sort_by", "in": "query", "schema": {"type": "string"}, "description": "Field to sort by."},
+            {"name": "sort_order", "in": "query", "schema": {"type": "string"}, "description": "Sort order ('asc' or 'desc')."}
         ],
         "responses": {
             "200": {"description": "List of users retrieved successfully."},

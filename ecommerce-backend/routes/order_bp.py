@@ -1,4 +1,4 @@
-from flask import Blueprint, request, jsonify, current_app
+from flask import Blueprint, request, jsonify, g, current_app
 from services.order_service import OrderService
 from schemas.order_schema import order_schema, orders_schema
 from utils.utils import error_response, role_required, jwt_required
@@ -19,7 +19,7 @@ def create_order_bp(cache, limiter):
     @order_bp.route('', methods=['POST'])
     @limiter.limit("5 per minute")
     @jwt_required
-    @role_required('user')
+    @role_required('user')  # Only users (customers) can create orders
     @swag_from({
         "tags": ["Orders"],
         "summary": "Create a new order",
@@ -79,7 +79,7 @@ def create_order_bp(cache, limiter):
         Only users with role 'user' (i.e. customers) can create orders.
         Expects a JSON payload with 'customer_id' and 'order_items' (a list).
         """
-        # Enforce that only customers (role "user") can create orders.
+        # Enforce that only customers can create orders.
         if g.user.get("role") != "user":
             return error_response("Only customers can create orders", 403)
         try:
@@ -91,6 +91,7 @@ def create_order_bp(cache, limiter):
         except Exception as e:
             current_app.logger.error(f"Error creating order: {str(e)}")
             return error_response(str(e))
+
     
     # ---------------------------
     # Get Paginated Orders

@@ -12,10 +12,7 @@ def create_order_bp(cache, limiter):
     Factory function to create the orders blueprint with a shared cache instance.
     """
     order_bp = Blueprint("orders", __name__)
-    
-    def create_order_bp(cache, limiter):
-    order_bp = Blueprint("orders", __name__)
-    
+  
     # ---------------------------
     # Create an Order
     # ---------------------------

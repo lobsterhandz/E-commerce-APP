@@ -270,5 +270,42 @@ def create_shopping_cart_bp(cache, limiter):
             return jsonify({"message": "Item removed successfully."}), 200
         except Exception as e:
             return error_response(str(e))
+    # ---------------------------
+    # Check-Out Cart
+    # ---------------------------
+    @shopping_cart_bp.route('/checkout', methods=['POST'])
+    @jwt_required()
+    @limiter.limit("5 per minute")
+    @swag_from({
+        "tags": ["Shopping Cart"],
+        "summary": "Checkout the shopping cart",
+        "description": "Finalizes the current shopping cart and converts it into an order.",
+        "security": [{"Bearer": []}],
+        "responses": {
+            "200": {"description": "Checkout successful."},
+            "400": {"description": "Validation error or empty cart."},
+            "500": {"description": "Internal server error."}
+        }
+    })
+    def checkout_cart():
+        """Checkout the shopping cart and create an order."""
+        try:
+            customer_id = get_jwt_identity()
+            
+            # Call a service function to handle checkout
+            order_summary = ShoppingCartService.checkout_cart(customer_id)
+            
+            return jsonify({
+                "message": "Checkout successful",
+                "order_summary": order_summary
+            }), 200
+        except ValueError as e:
+            return error_response(str(e), 400)
+        except Exception as e:
+            return error_response(f"Error during checkout: {str(e)}", 500)
+
+
+
+
 
     return shopping_cart_bp

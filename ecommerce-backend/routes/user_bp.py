@@ -268,9 +268,6 @@ def create_user_bp(cache, limiter):
         }
     })
     def list_users():
-        # Enforce role explicitly using the g object
-        if g.user.get("role") != "admin":
-            return error_response("Unauthorized access!", 403)
         try:
             page = request.args.get('page', 1, type=int)
             per_page = request.args.get('per_page', 10, type=int)

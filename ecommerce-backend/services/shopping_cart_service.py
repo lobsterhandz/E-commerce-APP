@@ -141,35 +141,37 @@ class ShoppingCartService:
     # ---------------------------
     @staticmethod
     def checkout_cart(customer_id):
-        """
-        Convert the cart into an order and clear the cart.
+        """Converts the shopping cart into an order."""
+        cart = ShoppingCartService.get_cart_by_customer(customer_id)
+        if not cart or not cart.items:
+            raise ValueError("Cannot checkout. Shopping cart is empty.")
 
-        Args:
-            customer_id (int): ID of the customer.
-
-        Returns:
-            dict: A summary of the checkout details.
-
-        Raises:
-            ValueError: If an error occurs during checkout.
-        """
-        try:
-            cart = ShoppingCartService.get_cart_by_customer(customer_id)
-
-            if not cart.items:
-                raise ValueError("Cart is empty. Cannot proceed to checkout.")
-
-            # Example: Convert cart items into an order (logic to be implemented)
-            order_summary = {
-                "customer_id": customer_id,
-                "items": [item.to_dict() for item in cart.items],
-                "total_price": sum(item.subtotal for item in cart.items),
+        # Convert cart items to order items
+        order_items = [
+            {
+                "product_id": item.product_id,
+                "quantity": item.quantity,
+                "price_at_order": item.subtotal / item.quantity  # Calculate unit price
             }
+            for item in cart.items
+        ]
 
-            # Clear the cart
-            ShoppingCartService.clear_cart(customer_id)
+        # Create an order from cart
+        new_order = OrderService.create_order(customer_id=customer_id, order_items=order_items)
 
-            return order_summary
-        except SQLAlchemyError as e:
-            db.session.rollback()
-            raise ValueError(f"Database error during checkout: {str(e)}")
+        # Clear the shopping cart after successful checkout
+        ShoppingCartService.clear_cart(customer_id)
+
+        return {
+            "order_id": new_order.id,
+            "total_price": new_order.total_price,
+            "items": order_items
+        }
+    
+    @staticmethod
+    def clear_cart(customer_id):
+        """Clears the shopping cart after checkout."""
+        cart = ShoppingCartService.get_cart_by_customer(customer_id)
+        if cart:
+            cart.items.clear()
+            cart.save()

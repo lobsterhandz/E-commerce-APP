@@ -13,13 +13,16 @@ def create_order_bp(cache, limiter):
     """
     order_bp = Blueprint("orders", __name__)
     
+    def create_order_bp(cache, limiter):
+    order_bp = Blueprint("orders", __name__)
+    
     # ---------------------------
     # Create an Order
     # ---------------------------
     @order_bp.route('', methods=['POST'])
     @limiter.limit("5 per minute")
     @jwt_required
-    @role_required('user')  # Only users (customers) can create orders
+    @role_required('user')
     @swag_from({
         "tags": ["Orders"],
         "summary": "Create a new order",
@@ -74,17 +77,11 @@ def create_order_bp(cache, limiter):
         }
     })
     def create_order():
-        """
-        Creates a new order.
-        Only users with role 'user' (i.e. customers) can create orders.
-        Expects a JSON payload with 'customer_id' and 'order_items' (a list).
-        """
-        # Enforce that only customers can create orders.
-        if g.user.get("role") != "user":
+        # Enforce that only customers (role "user") can create orders.
+        if g.get("jwt_claims", {}).get("role") != "user":
             return error_response("Only customers can create orders", 403)
         try:
             data = request.get_json()
-            # The OrderSchema expects a key "order_items" (a list of dictionaries)
             validated_data = order_schema.load(data)
             order = OrderService.create_order(**validated_data)
             return jsonify(order_schema.dump(order)), 201

@@ -12,7 +12,7 @@ class OrderSchema(Schema):
     )
     # Use a List field to ensure proper input type.
     order_items = fields.List(
-        fields.Nested(order_item_schema),
+        fields.Nested(order_item_schema, exclude=("order_id",)),
         required=True,
         error_messages={"required": "Order items are required."}
     )

@@ -143,18 +143,13 @@ def test_create_order(client, auth_tokens):
     payload = {
         "customer_id": 1,
         "order_items": [
-            {
-                "product_id": 1,
-                "quantity": 2,
-                "price_at_order": "99.99"  # Use a string if your schema requires it; otherwise, a number works too
-            }
+            {"product_id": 1, "quantity": 2, "price_at_order": "99.99"}
         ]
     }
     response = client.post("/orders", json=payload, headers=headers)
     assert response.status_code == 201, f"Expected 201 but got {response.status_code}"
     data = response.get_json()
-    # The API should return an order object with an 'id' (or 'order_id')
-    assert "id" in data or "order_id" in data, "Order response missing identifier"
+    assert "order_id" in data or "id" in data, "Order response missing 'order_id'"
 
 def test_admin_cannot_create_order(client, auth_tokens):
     """
@@ -164,15 +159,11 @@ def test_admin_cannot_create_order(client, auth_tokens):
     payload = {
         "customer_id": 1,
         "order_items": [
-            {
-                "product_id": 2,
-                "quantity": 1,
-                "price_at_order": "99.99"
-            }
+            {"product_id": 2, "quantity": 1, "price_at_order": "99.99"}
         ]
     }
     response = client.post("/orders", json=payload, headers=headers)
-    # Allow either 400 or 403 (depending on whether role blocking or data validation kicks in)
+    # Allow 400 or 403
     assert response.status_code in [400, 403], f"Admin should not be allowed to create an order (Got {response.status_code})"
     assert "error" in response.get_json(), "Expected an error message in response"
 

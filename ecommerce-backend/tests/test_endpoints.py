@@ -11,19 +11,19 @@ def auth_tokens(client):
         "username": "admin",
         "password": "adminpassword"
     })
-    # Print the login response to inspect the structure
     print("Admin login response:", admin_resp.get_json())
+    
     # Authenticate as customer
     customer_resp = client.post("/users/login", json={
         "username": "customer1",
         "password": "customerpassword"
     })
     print("Customer login response:", customer_resp.get_json())
+    
     # Ensure both logins succeed
     assert admin_resp.status_code == 200, "Admin login failed"
     assert customer_resp.status_code == 200, "Customer login failed"
 
-    # Use .get_json() to parse response payloads and extract access_token
     admin_data = admin_resp.get_json()
     customer_data = customer_resp.get_json()
 
@@ -58,6 +58,8 @@ def test_create_product(client, auth_tokens):
     assert response.status_code == 201, f"Expected 201 but got {response.status_code}"
     data = response.get_json()
     assert data["name"] == "New Product", "Product name does not match"
+    # Ensure the created product contains an 'id'
+    assert "id" in data, "Created product does not contain 'id'"
 
 def test_update_product(client, auth_tokens):
     """
@@ -73,7 +75,9 @@ def test_update_product(client, auth_tokens):
     }
     create_resp = client.post("/products", json=create_payload, headers=headers)
     assert create_resp.status_code == 201, "Failed to create product for update test"
-    product_id = create_resp.get_json()["id"]
+    product_data = create_resp.get_json()
+    assert "id" in product_data, "Created product does not contain 'id'"
+    product_id = product_data["id"]
 
     # Update the product
     update_payload = {
@@ -85,7 +89,8 @@ def test_update_product(client, auth_tokens):
     assert update_resp.status_code == 200, f"Expected 200 but got {update_resp.status_code}"
     updated_product = update_resp.get_json()
     assert updated_product["name"] == "Updated Product", "Product name was not updated"
-    assert updated_product["price"] == 59.99, "Product price was not updated"
+    # Convert price to float before comparing, as it might be returned as a string
+    assert float(updated_product["price"]) == 59.99, "Product price was not updated"
 
 def test_customer_cannot_create_product(client, auth_tokens):
     """
@@ -101,7 +106,6 @@ def test_delete_product(client, auth_tokens):
     Test product deletion (Admin only).
     """
     headers = {"Authorization": auth_tokens["admin"]}
-    # Create a product to delete
     payload = {
         "name": "Delete Me",
         "price": 25.99,
@@ -109,7 +113,10 @@ def test_delete_product(client, auth_tokens):
         "category_id": 1
     }
     create_resp = client.post("/products", json=payload, headers=headers)
-    product_id = create_resp.get_json()["id"]
+    assert create_resp.status_code == 201, "Failed to create product for deletion test"
+    product_data = create_resp.get_json()
+    assert "id" in product_data, "Created product does not contain 'id'"
+    product_id = product_data["id"]
 
     # Delete the product
     delete_resp = client.delete(f"/products/{product_id}", headers=headers)
@@ -122,15 +129,19 @@ def test_delete_product(client, auth_tokens):
     assert get_resp.status_code == 404, "Product still exists after deletion"
 
 def test_customer_cannot_delete_product(client, auth_tokens):
-    """Ensure customers cannot delete products."""
+    """
+    Ensure customers cannot delete products.
+    """
     headers = {"Authorization": auth_tokens["customer"]}
-
-    # ✅ Dynamically create a product for this test to avoid missing product errors
+    # Dynamically create a product for this test
     create_resp = client.post("/products", json={"name": "CannotDelete", "price": 30.00, "stock_quantity": 10, "category_id": 1}, headers=auth_tokens["admin"])
-    product_id = create_resp.get_json()["id"]
+    assert create_resp.status_code == 201, "Failed to create product for customer delete test"
+    product_data = create_resp.get_json()
+    assert "id" in product_data, "Created product does not contain 'id'"
+    product_id = product_data["id"]
 
     response = client.delete(f"/products/{product_id}", headers=headers)
-    assert response.status_code == 403  # ✅ Customers should not be able to delete products
+    assert response.status_code == 403, "Customer should not be allowed to delete a product"
 
 def test_admin_can_list_users(client, auth_tokens):
     """
@@ -166,7 +177,6 @@ def test_create_order(client, auth_tokens):
 def test_admin_cannot_create_order(client, auth_tokens):
     """
     Ensure that admins cannot create orders.
-    Your API must reject order creation for non-customer roles.
     """
     headers = {"Authorization": auth_tokens["admin"]}
     payload = {

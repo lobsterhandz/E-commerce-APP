@@ -7,25 +7,40 @@ import logging
 # Initialize Logger
 logger = logging.getLogger(__name__)
 
-# Initialize the Limiter
-limiter = Limiter(
-    key_func=get_remote_address,  # Use the client's IP address for rate limiting
-    default_limits=["200 per day", "50 per hour"],  # Default rate limits
-)
-
 def limiter_setup(app):
     """
-    Attach the limiter to the app with Redis validation.
+    Attach the limiter to the Flask app. Tries to use Redis for storage; if Redis is not available,
+    it falls back to in-memory storage.
+
     Args:
         app: The Flask app instance.
     """
-    redis_url = os.getenv("REDIS_URL", "redis://localhost:6379")  # Default Redis URL
-    try:
-        # Test Redis connection
-        redis_client = Redis.from_url(redis_url)
-        redis_client.ping()
-        app.logger.info("Redis is available at %s. Rate limiting enabled.", redis_url)
-    except Exception as e:
-        app.logger.warning("Redis not available (%s). Falling back to in-memory storage.", str(e))
-        limiter.storage_uri = None  # Switch to in-memory storage
+    # Disable rate limiting in testing environment
+    if os.getenv("FLASK_ENV") == "testing":
+        app.config["RATELIMIT_ENABLED"] = False
+    else:
+        app.config["RATELIMIT_ENABLED"] = True
+
+    # Default to in-memory storage
+    storage_uri = "memory://"
+
+    if app.config.get("RATELIMIT_ENABLED", True):
+        redis_url = os.getenv("REDIS_URL", "redis://localhost:6379")
+        try:
+            # Try to create a Redis client and ping to test connection
+            redis_client = Redis.from_url(redis_url)
+            redis_client.ping()
+            app.logger.info("Redis is available at %s. Rate limiting enabled.", redis_url)
+            storage_uri = redis_url  # Use Redis as the storage backend
+        except Exception as e:
+            app.logger.warning("Redis not available (%s). Falling back to in-memory storage.", str(e))
+
+    # Initialize the Limiter
+    limiter = Limiter(
+        key_func=get_remote_address,
+        default_limits=["10 per minute"],  # Adjust limit as needed
+        storage_uri=storage_uri,
+        enabled=app.config.get("RATELIMIT_ENABLED", True)
+    )
     limiter.init_app(app)
+    return limiter

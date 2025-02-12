@@ -55,7 +55,9 @@ def validate_configuration(app):
         raise RuntimeError(f"Application misconfigured: {', '.join(missing_keys)}")
 
 def create_app(config_name="development", *args, **kwargs):
-    config_name = config_name or os.getenv("FLASK_CONFIG", "development")
+    config_name = os.getenv("FLASK_CONFIG", "development").strip().lower()
+    if isinstance(config_name, dict):
+        raise TypeError(f"❌ ERROR: Expected a string for config_name, got {type(config_name)} instead: {config_name}")
 
     print(f"DEBUG: FLASK_CONFIG = {config_name}")  # ✅ Debugging
     print(f"DEBUG: Type of FLASK_CONFIG = {type(config_name)}")  # ✅ Verify it's a string

@@ -152,7 +152,10 @@ def test_create_order(client, auth_tokens):
     response = client.post("/orders", json=payload, headers=headers)
     assert response.status_code == 201, f"Expected 201 but got {response.status_code}"
     data = response.get_json()
-    assert "order_id" in data, "Order response missing 'order_id'"
+    
+    # ✅ FIX: Expect "id" instead of "order_id"
+    assert "id" in data, "Order response missing 'id'"
+    assert data["id"] > 0, "Invalid order ID"
 
 def test_checkout_cart(client, auth_tokens):
     """

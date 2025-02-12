@@ -1,4 +1,5 @@
 from models import db, Order, Product, Customer
+from datetime import datetime 
 
 
 class OrderService:
@@ -11,20 +12,22 @@ class OrderService:
     @staticmethod
     def create_order(customer_id, order_items):
         """
-        Creates a new order for the given customer with the provided order items.
+        Creates a new order with a list of order items.
 
         Args:
             customer_id (int): ID of the customer.
-            order_items (list): A list of order item dictionaries. Each dictionary must
-                                include 'product_id', 'quantity', and 'price_at_order'.
+            order_items (list): List of order item dictionaries, each must include:
+                - product_id (int)
+                - quantity (int)
+                - price_at_order (float)
 
         Returns:
-            Order: The newly created order object.
+            Order: The newly created order object with its items attached.
 
         Raises:
-            ValueError: If the customer is not found or if the order_items list is invalid.
+            ValueError: If validations fail.
         """
-        # Validate customer existence
+        # Validate customer exists
         customer = Customer.query.get(customer_id)
         if not customer:
             raise ValueError("Customer not found.")
@@ -32,20 +35,47 @@ class OrderService:
         if not order_items or not isinstance(order_items, list):
             raise ValueError("Order items must be provided as a list.")
 
-        # Calculate total_price from the order items
-        total_price = 0
-        for item in order_items:
-            if "quantity" not in item or "price_at_order" not in item:
-                raise ValueError("Each order item must include quantity and price_at_order.")
-            total_price += item["quantity"] * item["price_at_order"]
+        total_price = 0.0
 
+        # Create the order record first (without items)
         new_order = Order(
             customer_id=customer_id,
-            total_price=total_price,
+            total_price=0.0,  # Will update later
             created_at=datetime.utcnow(),
             updated_at=datetime.utcnow()
         )
         db.session.add(new_order)
+        db.session.flush()  # Assign an ID to new_order
+
+        # Process each order item
+        for item in order_items:
+            # Validate required fields in each order item
+            if "product_id" not in item or "quantity" not in item or "price_at_order" not in item:
+                raise ValueError("Each order item must include product_id, quantity, and price_at_order.")
+            if item["quantity"] <= 0:
+                raise ValueError("Quantity must be greater than zero.")
+
+            product = Product.query.get(item["product_id"])
+            if not product:
+                raise ValueError(f"Product {item['product_id']} not found.")
+
+            subtotal = item["quantity"] * item["price_at_order"]
+            total_price += subtotal
+
+            # Create an OrderItem record (assuming your OrderItem model exists)
+            new_order_item = OrderItem(
+                order_id=new_order.id,
+                product_id=item["product_id"],
+                quantity=item["quantity"],
+                price_at_order=item["price_at_order"],
+                subtotal=subtotal,
+                created_at=datetime.utcnow()
+            )
+            db.session.add(new_order_item)
+
+        # Update the order with the total price and commit
+        new_order.total_price = total_price
+        new_order.updated_at = datetime.utcnow()
         db.session.commit()
 
         return new_order

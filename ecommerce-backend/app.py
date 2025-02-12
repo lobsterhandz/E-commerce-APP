@@ -65,7 +65,15 @@ def create_app(config_name="development", *args, **kwargs):
     """
     config_name = config_name or os.getenv("FLASK_CONFIG", "development")
     app = Flask(__name__)
-    app.config.from_object(config_by_name[config_name])
+
+    # ✅ Ensure correct config loading
+    if config_name in config_by_name:
+        if isinstance(config_by_name[config_name], dict):
+            app.config.update(config_by_name[config_name])  
+        else:
+            app.config.from_object(get_config(config_name)) 
+    else:
+        raise ValueError(f"Invalid configuration name: {config_name}")
     print(f"SWAGGER_HOST: {app.config.get('SWAGGER_HOST')}")  # Debug
 
     limiter = create_limiter(app)

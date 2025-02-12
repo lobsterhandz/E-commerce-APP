@@ -67,7 +67,7 @@ class TestingConfig(Config):
     SQLALCHEMY_TRACK_MODIFICATIONS = False
     RATELIMIT_ENABLED = False # stop it from being enabled by default
     CACHE_TYPE = "NullCache"  # Disable caching during tests
-    
+
 class ProductionConfig(Config):
     DEBUG = False
     SQLALCHEMY_ECHO = False
@@ -80,4 +80,6 @@ config_by_name = {
 }
 
 def get_config(env_name="development"):
-    return config_by_name.get(env_name, DevelopmentConfig)
+    config_class = config_by_name.get(env_name, DevelopmentConfig)
+    return config_class()  # ✅ Now it returns an instance instead of a class
+

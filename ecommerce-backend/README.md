@@ -5,13 +5,19 @@ This project is a simple e-commerce management system developed using Flask. It 
 
 The project includes a modular code structure, robust error handling, and unit tests for reliability. Flask-SQLAlchemy is used as the ORM (Object Relational Mapper) and Flask-Migrate for managing database migrations. Additionally, it features JWT-based authentication, caching for optimized performance, request rate limiting, and schema validation using Marshmallow.
 
+The project leverages Flask for the API, PostgreSQL for the database, and a robust CI/CD pipeline using GitHub Actions and Render for continuous integration and deployment. It emphasizes automated testing, smooth deployment, and comprehensive documentation to facilitate efficient collaboration and project management.
+
 ## Key Features
 - **JWT Authentication**: Secure user login and role-based access control using JSON Web Tokens.
 - **Caching**: Optimized performance for frequently accessed endpoints using Flask-Caching.
 - **Rate Limiting**: API usage is controlled using Flask-Limiter to prevent abuse.
 - **Marshmallow Schemas**: Data validation and serialization for API requests and responses.
 - **Dynamic Shopping Cart**: A fully interactive shopping cart system that supports adding, updating, removing items, and seamless checkout functionality.
+- **CI/CD Workflow**: Automates build, test, and deployment processes with GitHub Actions and Render.
 
+- **Swagger Documentation**: Interactive API documentation accessible via Swagger UI: https://e-commerce-flask-232f.onrender.com/docs/
+- **GitHub Actions integration with Render**: safe and fast and continuous deployment
+- **Modular Design**: Can easilly port this app businesss or existing database.
 ## Project Structure
 ```
 # File Structure for `ecommerce-backend`
@@ -67,10 +73,10 @@ ecommerce-backend/
 |-- tests/
 |   |-- __pycache__/
 |   |-- __init__.py
-|   |-- mock_data.json
+|   |-- test_endpoints.py
 |   |-- mock_data.py
 |   |-- README.md
-|   |-- test_Data.py
+|   |-- conftest.py
 |-- utils/
 |   |-- __pycache__/
 |   |-- __init__.py
@@ -80,6 +86,7 @@ ecommerce-backend/
 |   |-- validation.py
 |-- venv/
 |-- .env
+|-- mock_data.json
 |-- app.py
 |-- config.py
 |-- menu.py
@@ -214,18 +221,32 @@ ecommerce-backend/
    python menu.py
    ```
 
-## Testing the Application
+## CI/CD Pipeline
+### GitHub Actions Workflow
+The CI/CD pipeline is defined in `.github/workflows/main.yml` and includes:
+- **Build & Test:**
+  - Automatically triggers on pushes to the main or feature branches.
+  - Runs unit tests with unittest and pytest.
+  - Fails the build if tests fail.
+- **Deployment:**
+  - Deploys to Render after passing all tests.
+  - Uses Render’s PostgreSQL database.
+  - Ensures production readiness with Gunicorn.
 
-Unit tests are included to validate the functionality of each route. To run the tests, use the following command:
+## Running Tests
+Unit tests ensure the reliability of API endpoints. To run them:
 ```sh
-python -m unittest discover -s tests -p "test_*.py"
+pytest tests/ --cov=routes --cov=services --cov-report=term --disable-warnings
 ```
 
-The tests cover:
-- Customer CRUD operations (`test_customer.py`)
-- Customer Account operations (`test_customer_account.py`)
-- Product management (`test_product.py`)
-- Order management (`test_order.py`)
+## Deployment
+### Render Deployment
+The application is deployed on Render with:
+- **Automatic deployment** from GitHub Actions.
+- **Database hosted on Render PostgreSQL**.
+- **Gunicorn for serving the Flask API**.
+- **Swagger UI for API documentation**.
+
 
 ## Contribution Guidelines
 - Contributions are welcome! Please fork the repository and create a pull request.
@@ -236,4 +257,14 @@ This project is licensed under the MIT License.
 
 ## Contact
 For any issues or inquiries, please contact [josemurillo82@gmail.com].
+
+## Notes & improvements
+Version: v6.12.0- stable
+- added updated README 2/12/25
+- added local db(sqlite) for testing enviorments to avoid accidental change/loss to prodution data.
+- Use simple cache(local) if Redis not setup.
+- can select config class (test,development, production) from your enviorment variable.
+- Github Actions will run conftest and test_enpoints before a succesfull push (ci-cd) 
+
+
 

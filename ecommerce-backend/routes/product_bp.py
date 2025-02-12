@@ -2,13 +2,13 @@ from flask import Blueprint, request, jsonify
 from services.product_service import ProductService
 from schemas.product_schema import product_schema, products_schema
 from utils.utils import error_response, role_required, jwt_required
-from utils.limiter import limiter
+from utils.limiter import create_limiter
 from flasgger.utils import swag_from
 
-# Allowed sortable fields
-SORTABLE_FIELDS = ['name', 'price']
+# Allowed sortable fields (adjust as needed)
+SORTABLE_FIELDS = ['name', 'price', 'stock_quantity']
 
-def create_product_bp(cache):
+def create_product_bp(cache, limiter):
     """
     Factory function to create the product blueprint with a shared cache instance.
     """
@@ -24,7 +24,11 @@ def create_product_bp(cache):
     @swag_from({
         "tags": ["Products"],
         "summary": "Create a new product",
-        "description": "Creates a new product with the specified details.",
+        "description": (
+            "Creates a new product with the specified details. "
+            "The payload must include 'name', 'price', and 'stock_quantity'. "
+            "Optionally, include 'category_id'."
+        ),
         "security": [{"Bearer": []}],
         "parameters": [
             {
@@ -33,10 +37,25 @@ def create_product_bp(cache):
                 "required": True,
                 "schema": {
                     "type": "object",
-                    "required": ["name", "price"],
+                    "required": ["name", "price", "stock_quantity"],
                     "properties": {
-                        "name": {"type": "string", "description": "Name of the product."},
-                        "price": {"type": "number", "format": "float", "description": "Price of the product."}
+                        "name": {
+                            "type": "string",
+                            "description": "Name of the product."
+                        },
+                        "price": {
+                            "type": "number",
+                            "format": "float",
+                            "description": "Price of the product."
+                        },
+                        "stock_quantity": {
+                            "type": "integer",
+                            "description": "Stock quantity available."
+                        },
+                        "category_id": {
+                            "type": "integer",
+                            "description": "Optional category ID for the product."
+                        }
                     }
                 }
             }
@@ -144,7 +163,10 @@ def create_product_bp(cache):
     @swag_from({
         "tags": ["Products"],
         "summary": "Update a product",
-        "description": "Updates a product's details by its unique ID.",
+        "description": (
+            "Updates a product's details by its unique ID. "
+            "Fields that can be updated include name, price, stock_quantity, and optionally category_id."
+        ),
         "security": [{"Bearer": []}],
         "parameters": [
             {"name": "product_id", "in": "path", "type": "integer", "required": True, "description": "Product ID."},
@@ -156,7 +178,9 @@ def create_product_bp(cache):
                     "type": "object",
                     "properties": {
                         "name": {"type": "string", "description": "Updated name of the product."},
-                        "price": {"type": "number", "format": "float", "description": "Updated price of the product."}
+                        "price": {"type": "number", "format": "float", "description": "Updated price of the product."},
+                        "stock_quantity": {"type": "integer", "description": "Updated stock quantity."},
+                        "category_id": {"type": "integer", "description": "Optional updated category ID."}
                     }
                 }
             }

@@ -2,13 +2,13 @@ from flask import Blueprint, request, jsonify
 from services.category_service import CategoryService
 from schemas.category_schema import category_schema, categories_schema
 from utils.utils import error_response, role_required, jwt_required
-from utils.limiter import limiter
+from utils.limiter import create_limiter
 from flasgger.utils import swag_from
 
 # Allowed sortable fields
 SORTABLE_FIELDS = ['name']
 
-def create_category_bp(cache):
+def create_category_bp(cache, limiter):
     """
     Factory function to create the category blueprint with a shared cache instance.
     """

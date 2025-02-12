@@ -1,4 +1,5 @@
-from models import db, Order, Product, Customer
+from models import db, Order, OrderItem, Product, Customer
+from datetime import datetime 
 
 
 class OrderService:
@@ -9,53 +10,75 @@ class OrderService:
     # Create Order
     # ---------------------------
     @staticmethod
-    def create_order(customer_id, product_id, quantity):
+    def create_order(customer_id, order_items):
         """
-        Creates a new order with validations.
+        Creates a new order with a list of order items.
 
         Args:
             customer_id (int): ID of the customer.
-            product_id (int): ID of the product.
-            quantity (int): Quantity of the product.
+            order_items (list): List of order item dictionaries, each must include:
+                - product_id (int)
+                - quantity (int)
+                - price_at_order (float)
 
         Returns:
-            Order: Newly created order object.
+            Order: The newly created order object with its items attached.
 
         Raises:
-            ValueError: If validation fails or creation error occurs.
+            ValueError: If validations fail.
         """
-        try:
-            # Validate customer
-            customer = Customer.query.get(customer_id)
-            if not customer:
-                raise ValueError("Customer not found.")
+        # Validate customer exists
+        customer = Customer.query.get(customer_id)
+        if not customer:
+            raise ValueError("Customer not found.")
 
-            # Validate product
-            product = Product.query.get(product_id)
-            if not product:
-                raise ValueError("Product not found.")
+        if not order_items or not isinstance(order_items, list):
+            raise ValueError("Order items must be provided as a list.")
 
-            # Validate quantity
-            if quantity <= 0:
+        total_price = 0.0
+
+        # Create the order record first (without items)
+        new_order = Order(
+            customer_id=customer_id,
+            total_price=0.0,  # Will update later
+            created_at=datetime.utcnow(),
+            updated_at=datetime.utcnow()
+        )
+        db.session.add(new_order)
+        db.session.flush()  # Assign an ID to new_order
+
+        # Process each order item
+        for item in order_items:
+            # Validate required fields in each order item
+            if "product_id" not in item or "quantity" not in item or "price_at_order" not in item:
+                raise ValueError("Each order item must include product_id, quantity, and price_at_order.")
+            if item["quantity"] <= 0:
                 raise ValueError("Quantity must be greater than zero.")
 
-            # Calculate total price
-            total_price = product.price * quantity
+            product = Product.query.get(item["product_id"])
+            if not product:
+                raise ValueError(f"Product {item['product_id']} not found.")
 
-            # Create and save order
-            new_order = Order(
-                customer_id=customer_id,
-                product_id=product_id,
-                quantity=quantity,
-                total_price=total_price
+            subtotal = item["quantity"] * item["price_at_order"]
+            total_price += subtotal
+
+            # Create an OrderItem record (assuming your OrderItem model exists)
+            new_order_item = OrderItem(
+                order_id=new_order.id,
+                product_id=item["product_id"],
+                quantity=item["quantity"],
+                price_at_order=item["price_at_order"],
+                subtotal=subtotal,
+                created_at=datetime.utcnow()
             )
-            db.session.add(new_order)
-            db.session.commit()
+            db.session.add(new_order_item)
 
-            return new_order
-        except Exception as e:
-            db.session.rollback()
-            raise ValueError(f"Error creating order: {str(e)}")
+        # Update the order with the total price and commit
+        new_order.total_price = total_price
+        new_order.updated_at = datetime.utcnow()
+        db.session.commit()
+
+        return new_order
 
     # ---------------------------
     # Get Order by ID
@@ -132,30 +155,15 @@ class OrderService:
             ValueError: If query or input validation fails.
         """
         try:
-            # Input validation
-            page = max(1, int(page))  # Ensure page >= 1
-            per_page = min(max(1, int(per_page)), 100)  # Ensure 1 <= per_page <= 100
-
-            # Validate sort_by field
+            page = max(1, int(page))
+            per_page = min(max(1, int(per_page)), 100)
             if sort_by not in OrderService.SORTABLE_FIELDS:
                 raise ValueError(f"Invalid sort_by field. Allowed: {OrderService.SORTABLE_FIELDS}")
-
-            # Determine sort direction
             sort_column = getattr(Order, sort_by)
             if sort_order.lower() == 'desc':
                 sort_column = sort_column.desc()
-
-            # Perform query with sorting
-            pagination = Order.query.order_by(sort_column).paginate(
-                page=page, per_page=per_page, error_out=False
-            )
-
-            # Prepare response
-            response = {
-                "items": pagination.items
-            }
-
-            # Include metadata if requested
+            pagination = Order.query.order_by(sort_column).paginate(page=page, per_page=per_page, error_out=False)
+            response = {"items": pagination.items}
             if include_meta:
                 response.update({
                     "total": pagination.total,
@@ -163,7 +171,6 @@ class OrderService:
                     "page": pagination.page,
                     "per_page": pagination.per_page
                 })
-
             return response
         except Exception as e:
             raise ValueError(f"Error retrieving paginated orders: {str(e)}")

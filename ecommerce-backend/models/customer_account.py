@@ -1,21 +1,24 @@
 from models import db
 from sqlalchemy.sql import func
-from sqlalchemy import CheckConstraint
+from sqlalchemy import CheckConstraint, ForeignKey
 from sqlalchemy.orm import relationship
 from werkzeug.security import generate_password_hash, check_password_hash
 from datetime import datetime
+
 class CustomerAccount(db.Model):
     __tablename__ = 'customer_accounts'
 
     # Columns
     id = db.Column(db.Integer, primary_key=True)
-    username = db.Column(db.String(80), unique=True, nullable=False, index=True)  # Indexed for faster lookups
+    username = db.Column(db.String(80), unique=True, nullable=False, index=True)
     password_hash = db.Column(db.String(200), nullable=False)
     customer_id = db.Column(db.Integer, db.ForeignKey('customers.id'), nullable=False, unique=True)
-    is_active = db.Column(db.Boolean, default=True, nullable=False)  # Active status for quick deactivation
+    is_active = db.Column(db.Boolean, default=True, nullable=False)
     created_at = db.Column(db.DateTime, default=func.current_timestamp(), index=True)
     updated_at = db.Column(db.DateTime, default=func.current_timestamp(), onupdate=func.current_timestamp())
-    deleted_at = db.Column(db.DateTime, nullable=True, index=True)  # Indexed for soft-deletion queries
+    deleted_at = db.Column(db.DateTime, nullable=True, index=True)
+    # NEW FIELD: allow category_id to be passed in
+    category_id = db.Column(db.Integer, db.ForeignKey('categories.id'), nullable=True)
 
     # Table-level constraints
     __table_args__ = (
@@ -24,6 +27,7 @@ class CustomerAccount(db.Model):
 
     # Relationships
     customer = relationship('Customer', back_populates='account')
+
     # ---------------------------
     # Password Management
     # ---------------------------
@@ -49,20 +53,17 @@ class CustomerAccount(db.Model):
     # ---------------------------
     # JSON Serialization
     # ---------------------------
-   
     def to_dict(self):
-        from datetime import datetime
-
         def format_datetime(value):
             if isinstance(value, datetime):
                 return value.isoformat()
-            if isinstance(value, str):  # Handle unexpected string
+            if isinstance(value, str):
                 try:
                     parsed_date = datetime.fromisoformat(value)
                     return parsed_date.isoformat()
                 except ValueError:
                     print(f"WARNING: Invalid date string: {value}")
-                    return value  # Leave as-is for inspection
+                    return value
             return None
 
         return {
@@ -73,9 +74,8 @@ class CustomerAccount(db.Model):
             "created_at": format_datetime(self.created_at),
             "updated_at": format_datetime(self.updated_at),
             "deleted_at": format_datetime(self.deleted_at),
+            "category_id": self.category_id
         }
-
-
 
     # ---------------------------
     # String Representation

@@ -1,0 +1,109 @@
+name: E-Commerce CI/CD
+
+on:
+  push:
+    branches:
+      - main
+      - feature/tests
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+
+    services:
+      postgres:
+        image: postgres
+        env:
+          POSTGRES_USER: e_commerce_pg_db_user
+          POSTGRES_PASSWORD: Iuel3QIyuNKNP8IytdUEce40oXFoFCvd
+          POSTGRES_DB: e_commerce_pg_db
+        ports:
+          - 5432:5432
+        options: --health-cmd "pg_isready" --health-interval 10s --health-timeout 5s --health-retries 5
+
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v3
+
+      - name: Set Up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: "3.9"
+
+      - name: Create and Activate Virtual Environment
+        working-directory: ecommerce-backend
+        run: |
+          python -m venv venv
+          source venv/bin/activate
+          echo "✅ Virtual environment created successfully"
+
+      - name: Install Dependencies
+        working-directory: ecommerce-backend
+        run: |
+          source venv/bin/activate
+          pip install --upgrade pip
+          pip install -r requirements.txt
+
+      # ✅ FIXED INDENTATION (No longer inside Install Dependencies)
+      - name: Apply Migrations  
+        working-directory: ecommerce-backend
+        env:
+          FLASK_APP: app
+          FLASK_ENV: ${{ secrets.FLASK_ENV }}
+          FLASK_CONFIG: ${{ secrets.FLASK_CONFIG }}
+          DATABASE_URL: ${{ secrets.DATABASE_URL }}
+          SECRET_KEY: ${{ secrets.SECRET_KEY }}
+          JWT_SECRET_KEY: ${{ secrets.JWT_SECRET_KEY }}
+          PASSWORD_SALT: ${{ secrets.PASSWORD_SALT }}
+          SWAGGER_HOST: ${{ secrets.SWAGGER_HOST }}
+          SWAGGER_SCHEMES: ${{ secrets.SWAGGER_SCHEMES }}
+          USE_REDIS_CACHE: "False"
+          PYTHONPATH: ${{ github.workspace }}/ecommerce-backend
+        run: |
+          source venv/bin/activate
+          if [ ! -d "migrations" ]; then
+            echo "⚠️ Migrations folder missing. Initializing database..."
+            flask db init
+          fi
+          flask db migrate -m "Auto migration" || echo "⚠️ No new migrations detected."
+          flask db upgrade
+          python tests/db_seed.py
+
+      - name: Run Tests (Unittest & Pytest with Coverage)  
+        working-directory: ecommerce-backend
+        env:
+          FLASK_ENV: ${{ secrets.FLASK_ENV }}
+          FLASK_CONFIG: ${{ secrets.FLASK_CONFIG }}
+          DATABASE_URL: ${{ secrets.TEST_DATABASE_URL }} 
+          SECRET_KEY: ${{ secrets.SECRET_KEY }}
+          JWT_SECRET_KEY: ${{ secrets.JWT_SECRET_KEY }}
+          PASSWORD_SALT: ${{ secrets.PASSWORD_SALT }}
+          SWAGGER_HOST: ${{ secrets.SWAGGER_HOST }}
+          SWAGGER_SCHEMES: ${{ secrets.SWAGGER_SCHEMES }}
+          USE_REDIS_CACHE: "False"
+          PYTHONPATH: ${{ github.workspace }}/ecommerce-backend
+        run: |
+          source venv/bin/activate
+          pytest tests/ --cov=routes --cov=services --cov-report=term --disable-warnings --maxfail=3 --tb=short -v
+
+  deploy:
+    needs: test
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v3
+
+      - name: Deploy Flask API to Render
+        env:
+          RENDER_SERVICE_ID: ${{ secrets.RENDER_SERVICE_ID }}
+          RENDER_API_KEY: ${{ secrets.RENDER_API_KEY }}
+        run: |
+          until curl -X POST "https://api.render.com/v1/services/$RENDER_SERVICE_ID/deploys" \
+            -H "Authorization: Bearer $RENDER_API_KEY" \
+            -H "Accept: application/json" \
+            -H "Content-Type: application/json" \
+            --data '{}'; do
+            echo "Render deployment failed, retrying in 10s..."
+            sleep 10
+          done

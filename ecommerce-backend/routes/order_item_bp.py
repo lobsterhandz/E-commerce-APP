@@ -1,20 +1,19 @@
-from flask import Blueprint, request, jsonify
+from flask import Blueprint, request, jsonify, current_app
 from services.order_item_service import OrderItemService
 from schemas.order_item_schema import order_item_schema, order_items_schema
 from utils.utils import error_response, role_required, jwt_required
-from utils.limiter import limiter
 from flasgger.utils import swag_from
 
 # Allowed sortable fields
 SORTABLE_FIELDS = ['quantity', 'price_at_order', 'subtotal']
 
-def create_order_item_bp(cache):
+def create_order_item_bp(cache, limiter):
     """
     Factory function to create the order items blueprint with a shared cache instance.
     """
     order_item_bp = Blueprint('order_items', __name__)
 
-     # ---------------------------
+    # ---------------------------
     # Create Order Item
     # ---------------------------
     @order_item_bp.route('', methods=['POST'])
@@ -25,18 +24,18 @@ def create_order_item_bp(cache):
         "tags": ["Order Items"],
         "summary": "Create a new order item",
         "description": "Creates a new order item for a specific order. Requires a valid JWT token for authentication.",
-        "security": [{"Bearer": []}],  # Requires Bearer token
-        "parameters": [  # Path parameters (if applicable)
+        "security": [{"Bearer": []}],
+        "parameters": [
             {
-                "name": "order_id",
                 "in": "query",
+                "name": "order_id",
                 "required": True,
                 "schema": {"type": "integer"},
                 "description": "ID of the order.",
                 "example": 123
             }
         ],
-        "requestBody": {  # Request body for order item details
+        "requestBody": {
             "required": True,
             "content": {
                 "application/json": {
@@ -70,7 +69,7 @@ def create_order_item_bp(cache):
                 }
             }
         },
-        "responses": {  # Response definitions
+        "responses": {
             "201": {
                 "description": "Order item created successfully.",
                 "content": {
@@ -101,6 +100,7 @@ def create_order_item_bp(cache):
             order_item = OrderItemService.create_item(**validated_data)
             return jsonify(order_item_schema.dump(order_item)), 201
         except Exception as e:
+            current_app.logger.error(f"Error creating order item: {str(e)}")
             return error_response(str(e))
 
     # ---------------------------
@@ -122,13 +122,9 @@ def create_order_item_bp(cache):
         "responses": {
             "200": {
                 "description": "Order items retrieved successfully.",
-                "content": {
-                    "application/json": {
-                        "schema": {
-                            "type": "array",
-                            "items": {"$ref": "#/definitions/OrderItem"}
-                        }
-                    }
+                "schema": {
+                    "type": "array",
+                    "items": {"$ref": "#/definitions/OrderItem"}
                 }
             },
             "404": {"description": "Order not found."}

@@ -10,7 +10,7 @@ class ShoppingCartItem(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     cart_id = db.Column(db.Integer, db.ForeignKey('shopping_carts.id'), nullable=False, index=True)
     product_id = db.Column(db.Integer, db.ForeignKey('products.id'), nullable=False, index=True)
-    quantity = db.Column(db.Integer, nullable=False, default=1)  # Removed `check`
+    quantity = db.Column(db.Integer, nullable=False, default=1)
     price = db.Column(db.Float, nullable=False, default=0.0)
     subtotal = db.Column(db.Float, nullable=False)
     created_at = db.Column(db.DateTime, server_default=func.now(), nullable=False)
@@ -63,5 +63,4 @@ class ShoppingCartItem(db.Model):
     # String Representation
     # ---------------------------
     def __repr__(self):
-        """Defines how the object is represented as a string."""
         return f"<ShoppingCartItem CartID: {self.cart_id}, ProductID: {self.product_id}, Quantity: {self.quantity}>"

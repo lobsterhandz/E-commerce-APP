@@ -1,7 +1,7 @@
 import jwt
 import logging
 from datetime import datetime, timezone, timedelta
-from flask import request, jsonify, g
+from flask import request, jsonify, g, current_app
 from functools import wraps
 from config import Config
 
@@ -87,7 +87,12 @@ def jwt_required(f):
 # ---------------------------
 # Role-Based Access Control
 # ---------------------------
-ROLE_HIERARCHY = {'super_admin': 3, 'admin': 2, 'user': 1}
+
+ROLE_HIERARCHY = {
+    "user": 1,
+    "admin": 2,
+    "super_admin": 3,
+}
 
 def role_required(required_role):
     """
@@ -96,24 +101,32 @@ def role_required(required_role):
     def decorator(f):
         @wraps(f)
         def decorated_function(*args, **kwargs):
-            token = request.headers.get('Authorization')
+            token = request.headers.get("Authorization")
             if not token:
-                return error_response("Token is missing!", 403)
+                return jsonify({"error": "Token is missing!"}), 403
+
             try:
-                token = token.split(" ")[1]
+                parts = token.split(" ")
+                if len(parts) != 2 or parts[0] != "Bearer":
+                    return jsonify({"error": "Invalid token format."}), 403
+                token = parts[1]
                 payload = decode_token(token)
-                if isinstance(payload, str):  # Check if payload is an error message
-                    return error_response(payload, 403)
-                user_role = payload['role']
+                user_role = payload.get("role")
+                
+                # Debug logging
+                current_app.logger.info(f"🔍 Role check: user role '{user_role}', required '{required_role}'")
+                
                 if ROLE_HIERARCHY.get(user_role, 0) < ROLE_HIERARCHY.get(required_role, 0):
-                    logger.warning(f"Unauthorized role: {user_role}")
-                    return error_response("Unauthorized access!", 403)
+                    current_app.logger.warning(f"Unauthorized access attempt with role '{user_role}' (required: '{required_role}')")
+                    return jsonify({"error": "Unauthorized access!"}), 403
             except Exception as e:
-                logger.error(f"Role validation error: {e}")
-                return error_response("Token is invalid!", 403)
+                current_app.logger.error(f"Role validation error: {e}")
+                return jsonify({"error": "Token is invalid!"}), 403
+
             return f(*args, **kwargs)
         return decorated_function
     return decorator
+
 
 
 # ---------------------------

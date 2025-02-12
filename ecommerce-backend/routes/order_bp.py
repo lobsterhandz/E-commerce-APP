@@ -1,29 +1,32 @@
-from flask import Blueprint, request, jsonify
+from flask import Blueprint, request, jsonify, g, current_app
 from services.order_service import OrderService
 from schemas.order_schema import order_schema, orders_schema
 from utils.utils import error_response, role_required, jwt_required
-from utils.limiter import limiter
 from flasgger.utils import swag_from
 
-# Allowed sortable fields
-SORTABLE_FIELDS = ['created_at', 'quantity', 'total_price']
+# Allowed sortable fields (removed 'quantity' since that's within order items)
+SORTABLE_FIELDS = ['created_at', 'total_price']
 
-def create_order_bp(cache):
+def create_order_bp(cache, limiter):
     """
-    Factory function to create the <blueprint_name> blueprint with a shared cache instance.
+    Factory function to create the orders blueprint with a shared cache instance.
     """
     order_bp = Blueprint("orders", __name__)
+  
     # ---------------------------
     # Create an Order
     # ---------------------------
     @order_bp.route('', methods=['POST'])
-    @limiter.limit("5 per minute")  # Rate limiting
-    @jwt_required  # Requires valid JWT token
-    @role_required('user')  # Restrict to 'user' role
+    @limiter.limit("5 per minute")
+    @jwt_required
+    @role_required('user')
     @swag_from({
         "tags": ["Orders"],
         "summary": "Create a new order",
-        "description": "Creates a new order with the specified details.",
+        "description": (
+            "Creates a new order with the specified details. The payload must include a customer_id "
+            "and a list of order items (each containing product_id, quantity, and price_at_order)."
+        ),
         "security": [{"Bearer": []}],
         "parameters": [
             {
@@ -32,11 +35,34 @@ def create_order_bp(cache):
                 "required": True,
                 "schema": {
                     "type": "object",
-                    "required": ["customer_id", "product_id", "quantity"],
+                    "required": ["customer_id", "order_items"],
                     "properties": {
-                        "customer_id": {"type": "integer", "description": "ID of the customer placing the order."},
-                        "product_id": {"type": "integer", "description": "ID of the product being ordered."},
-                        "quantity": {"type": "integer", "description": "Quantity of the product ordered."}
+                        "customer_id": {
+                            "type": "integer",
+                            "description": "ID of the customer placing the order."
+                        },
+                        "order_items": {
+                            "type": "array",
+                            "items": {
+                                "type": "object",
+                                "required": ["product_id", "quantity", "price_at_order"],
+                                "properties": {
+                                    "product_id": {
+                                        "type": "integer",
+                                        "description": "ID of the product."
+                                    },
+                                    "quantity": {
+                                        "type": "integer",
+                                        "description": "Quantity ordered."
+                                    },
+                                    "price_at_order": {
+                                        "type": "number",
+                                        "format": "float",
+                                        "description": "Price of the product at the time of the order."
+                                    }
+                                }
+                            }
+                        }
                     }
                 }
             }
@@ -48,25 +74,29 @@ def create_order_bp(cache):
         }
     })
     def create_order():
-        """
-        Creates a new order.
-        """
+        # Ensure only customers (role "user") can create orders.
+        if g.user.get("role") != "user":
+            return error_response("Only customers can create orders", 403)
         try:
             data = request.get_json()
             validated_data = order_schema.load(data)
-            order = OrderService.create_order(**validated_data)
+            order = OrderService.create_order(
+                customer_id=validated_data["customer_id"],
+                order_items=validated_data["order_items"]
+            )
             return jsonify(order_schema.dump(order)), 201
         except Exception as e:
+            current_app.logger.error(f"Error creating order: {str(e)}")
             return error_response(str(e))
-    
+
     # ---------------------------
     # Get Paginated Orders
     # ---------------------------
     @order_bp.route('', methods=['GET'])
-    @cache.cached(query_string=True)  # Cache GET requests with query parameters
-    @limiter.limit("10 per minute")  # Rate limiting
-    @jwt_required  # Requires valid JWT token
-    @role_required('admin')  # Admin-only access
+    @cache.cached(query_string=True)
+    @limiter.limit("10 per minute")
+    @jwt_required
+    @role_required('admin')
     @swag_from({
         "tags": ["Orders"],
         "summary": "Retrieve paginated orders",
@@ -94,7 +124,9 @@ def create_order_bp(cache):
                 "in": "query",
                 "type": "string",
                 "required": False,
-                "description": "Field to sort by (default: 'created_at'). Allowed fields: ['created_at', 'status', 'total'].",
+                "description": (
+                    "Field to sort by (default: 'created_at'). Allowed fields: ['created_at', 'total_price']."
+                ),
                 "example": "created_at"
             },
             {
@@ -125,58 +157,34 @@ def create_order_bp(cache):
                             "items": {
                                 "type": "object",
                                 "properties": {
-                                    "id": {
-                                        "type": "integer",
-                                        "example": 1,
-                                        "description": "Unique identifier for the order."
-                                    },
-                                    "created_at": {
-                                        "type": "string",
-                                        "format": "date-time",
-                                        "example": "2025-01-20T10:00:00Z",
-                                        "description": "Timestamp of when the order was created."
-                                    },
-                                    "status": {
-                                        "type": "string",
-                                        "example": "completed",
-                                        "description": "Status of the order."
-                                    },
-                                    "total": {
-                                        "type": "number",
-                                        "format": "float",
-                                        "example": 99.99,
-                                        "description": "Total amount of the order."
+                                    "id": {"type": "integer", "example": 1, "description": "Unique identifier for the order."},
+                                    "customer_id": {"type": "integer", "example": 1, "description": "ID of the customer."},
+                                    "created_at": {"type": "string", "format": "date-time", "example": "2025-01-20T10:00:00Z", "description": "Timestamp when the order was created."},
+                                    "total_price": {"type": "number", "format": "float", "example": 99.99, "description": "Total amount of the order."},
+                                    "order_items": {  # Reflecting the new key
+                                        "type": "array",
+                                        "items": {
+                                            "type": "object",
+                                            "properties": {
+                                                "product_id": {"type": "integer", "example": 45, "description": "ID of the product."},
+                                                "quantity": {"type": "integer", "example": 2, "description": "Quantity ordered."},
+                                                "price_at_order": {"type": "number", "format": "float", "example": 49.99, "description": "Price of the product at order time."}
+                                            }
+                                        }
                                     }
                                 }
                             }
                         },
-                        "total": {
-                            "type": "integer",
-                            "example": 100,
-                            "description": "Total number of orders."
-                        },
-                        "pages": {
-                            "type": "integer",
-                            "example": 10,
-                            "description": "Total number of pages."
-                        },
-                        "page": {
-                            "type": "integer",
-                            "example": 1,
-                            "description": "Current page number."
-                        },
-                        "per_page": {
-                            "type": "integer",
-                            "example": 10,
-                            "description": "Number of records per page."
-                        }
+                        "total": {"type": "integer", "example": 100, "description": "Total number of orders."},
+                        "pages": {"type": "integer", "example": 10, "description": "Total number of pages."},
+                        "page": {"type": "integer", "example": 1, "description": "Current page number."},
+                        "per_page": {"type": "integer", "example": 10, "description": "Number of records per page."}
                     }
                 }
             },
             "500": {"description": "Internal server error."}
         }
     })
-
     def get_orders():
         """
         Retrieves paginated orders with optional sorting and metadata.
@@ -200,7 +208,6 @@ def create_order_bp(cache):
             response = {"orders": orders_schema.dump(data["items"])}
             if include_meta:
                 response.update({k: v for k, v in data.items() if k != "items"})
-
             return jsonify(response), 200
         except Exception as e:
             return error_response(str(e), 500)
@@ -233,71 +240,28 @@ def create_order_bp(cache):
                 "schema": {
                     "type": "object",
                     "properties": {
-                        "id": {
-                            "type": "integer",
-                            "example": 123,
-                            "description": "Unique identifier of the order."
-                        },
-                        "created_at": {
-                            "type": "string",
-                            "format": "date-time",
-                            "example": "2025-01-20T10:00:00Z",
-                            "description": "Timestamp when the order was created."
-                        },
-                        "status": {
-                            "type": "string",
-                            "example": "completed",
-                            "description": "Current status of the order."
-                        },
-                        "total": {
-                            "type": "number",
-                            "format": "float",
-                            "example": 150.75,
-                            "description": "Total amount for the order."
-                        },
-                        "items": {
+                        "id": {"type": "integer", "example": 123, "description": "Unique identifier of the order."},
+                        "customer_id": {"type": "integer", "example": 1, "description": "ID of the customer who placed the order."},
+                        "created_at": {"type": "string", "format": "date-time", "example": "2025-01-20T10:00:00Z", "description": "Timestamp when the order was created."},
+                        "total_price": {"type": "number", "format": "float", "example": 150.75, "description": "Total amount for the order."},
+                        "order_items": {  # Reflect the new key
                             "type": "array",
                             "items": {
                                 "type": "object",
                                 "properties": {
-                                    "product_id": {
-                                        "type": "integer",
-                                        "example": 45,
-                                        "description": "ID of the product."
-                                    },
-                                    "quantity": {
-                                        "type": "integer",
-                                        "example": 2,
-                                        "description": "Quantity of the product in the order."
-                                    },
-                                    "price": {
-                                        "type": "number",
-                                        "format": "float",
-                                        "example": 75.38,
-                                        "description": "Price of a single unit of the product."
-                                    }
+                                    "product_id": {"type": "integer", "example": 45, "description": "ID of the product."},
+                                    "quantity": {"type": "integer", "example": 2, "description": "Quantity of the product in the order."},
+                                    "price_at_order": {"type": "number", "format": "float", "example": 75.38, "description": "Price of a single unit of the product."}
                                 }
                             }
                         }
                     }
                 }
             },
-            "404": {
-                "description": "Order not found.",
-                "schema": {
-                    "type": "object",
-                    "properties": {
-                        "error": {
-                            "type": "string",
-                            "example": "Order with ID 123 not found."
-                        }
-                    }
-                }
-            },
+            "404": {"description": "Order not found."},
             "500": {"description": "Internal server error."}
         }
     })
-
     def get_order(order_id):
         """
         Retrieve an order by its ID.
@@ -310,6 +274,9 @@ def create_order_bp(cache):
         except Exception as e:
             return error_response(str(e), 500)
 
+    # ---------------------------
+    # Update Order by ID
+    # ---------------------------
     @order_bp.route('/<int:order_id>', methods=['PUT'])
     @limiter.limit("5 per minute")
     @jwt_required
@@ -317,7 +284,10 @@ def create_order_bp(cache):
     @swag_from({
         "tags": ["Orders"],
         "summary": "Update an order by its ID",
-        "description": "Updates the details of an order using its unique ID.",
+        "description": (
+            "Updates the details of an order using its unique ID. "
+            "The payload should include updated order items if applicable."
+        ),
         "security": [{"Bearer": []}],
         "parameters": [
             {
@@ -336,18 +306,7 @@ def create_order_bp(cache):
                     "schema": {
                         "type": "object",
                         "properties": {
-                            "status": {
-                                "type": "string",
-                                "description": "Updated status of the order.",
-                                "example": "shipped"
-                            },
-                            "total": {
-                                "type": "number",
-                                "format": "float",
-                                "description": "Updated total amount for the order.",
-                                "example": 150.75
-                            },
-                            "items": {
+                            "order_items": {  # New key for updating items
                                 "type": "array",
                                 "items": {
                                     "type": "object",
@@ -362,7 +321,7 @@ def create_order_bp(cache):
                                             "description": "Quantity of the product in the order.",
                                             "example": 3
                                         },
-                                        "price": {
+                                        "price_at_order": {
                                             "type": "number",
                                             "format": "float",
                                             "description": "Updated price of the product.",
@@ -372,7 +331,7 @@ def create_order_bp(cache):
                                 }
                             }
                         },
-                        "required": ["status", "items"]  # Specify required fields
+                        "required": ["order_items"]
                     }
                 }
             }
@@ -417,13 +376,13 @@ def create_order_bp(cache):
             "500": {"description": "Internal server error."}
         }
     })
-
     def update_order(order_id):
         """
         Update an order by its ID.
         """
         try:
             data = request.get_json()
+            # Load and validate data with partial=True
             validated_data = order_schema.load(data, partial=True)
             order = OrderService.update_order(order_id, **validated_data)
             return jsonify(order_schema.dump(order)), 200
@@ -465,6 +424,5 @@ def create_order_bp(cache):
             return jsonify({"message": "Order deleted successfully"}), 200
         except Exception as e:
             return error_response(str(e), 500)
-
 
     return order_bp

@@ -1,44 +1,58 @@
 from models import db, Product
-
+from decimal import Decimal
+from sqlalchemy.exc import SQLAlchemyError
 
 class ProductService:
     # Allowed fields for sorting
-    SORTABLE_FIELDS = ['name', 'price']
+    SORTABLE_FIELDS = ['name', 'price', 'stock_quantity']
 
     # ---------------------------
     # Create a product
     # ---------------------------
     @staticmethod
-    def create_product(name, price):
+    def create_product(**kwargs):
         """
         Creates a new product.
 
-        Args:
-            name (str): Name of the product.
-            price (float): Price of the product.
+        Expected keys in kwargs:
+            - name (str): Name of the product (required).
+            - price (int, float, or Decimal): Price of the product (required, non-negative).
+            - stock_quantity (int): Available stock (required, non-negative).
+            - category_id (int, optional): ID of the category.
 
         Returns:
-            Product: Created product object.
+            Product: The created product object.
 
         Raises:
             ValueError: If validation fails or creation error occurs.
         """
         try:
             # Validate required fields
-            if not name or price is None or not isinstance(price, (int, float)) or price < 0:
-                raise ValueError("Invalid product data. Name and valid price are required.")
+            name = kwargs.get("name")
+            price = kwargs.get("price")
+            stock_quantity = kwargs.get("stock_quantity")
 
-            # Create a new product
-            new_product = Product(name=name, price=price)
+            if not name:
+                raise ValueError("Product name is required.")
+            if price is None or not isinstance(price, (int, float, Decimal)) or Decimal(price) < 0:
+                raise ValueError("Price must be a non-negative number.")
+            if stock_quantity is None or not isinstance(stock_quantity, int) or stock_quantity < 0:
+                raise ValueError("Stock quantity must be a non-negative integer.")
+
+            # Create a new product using all provided keyword arguments
+            new_product = Product(**kwargs)
             db.session.add(new_product)
             db.session.commit()
             return new_product
+        except SQLAlchemyError as e:
+            db.session.rollback()
+            raise ValueError(f"Error creating product: {str(e)}")
         except Exception as e:
             db.session.rollback()
             raise ValueError(f"Error creating product: {str(e)}")
 
     # ---------------------------
-    # Get paginated products (NEW)
+    # Get paginated products
     # ---------------------------
     @staticmethod
     def get_paginated_products(page=1, per_page=10, sort_by='name', sort_order='asc', include_meta=True):
@@ -48,7 +62,7 @@ class ProductService:
         Args:
             page (int): Page number (default: 1).
             per_page (int): Records per page (default: 10, max: 100).
-            sort_by (str): Column to sort by ('name', 'price') (default: 'name').
+            sort_by (str): Column to sort by ('name', 'price', 'stock_quantity') (default: 'name').
             sort_order (str): Sorting order ('asc' or 'desc') (default: 'asc').
             include_meta (bool): Include metadata in the response (default: True).
 
@@ -59,25 +73,20 @@ class ProductService:
             ValueError: If query or input validation fails.
         """
         try:
-            # Input validation
-            page = max(1, int(page))  # Ensure page >= 1
-            per_page = min(max(1, int(per_page)), 100)  # Limit 1 <= per_page <= 100
+            page = max(1, int(page))
+            per_page = min(max(1, int(per_page)), 100)
 
-            # Validate sorting field
             if sort_by not in ProductService.SORTABLE_FIELDS:
                 raise ValueError(f"Invalid sort_by field. Allowed: {ProductService.SORTABLE_FIELDS}")
 
-            # Determine sort order
             sort_column = getattr(Product, sort_by)
             if sort_order.lower() == 'desc':
                 sort_column = sort_column.desc()
 
-            # Query with pagination and sorting
             pagination = Product.query.order_by(sort_column).paginate(
                 page=page, per_page=per_page, error_out=False
             )
 
-            # Prepare response
             response = {"items": pagination.items}
             if include_meta:
                 response.update({
@@ -86,7 +95,6 @@ class ProductService:
                     "page": pagination.page,
                     "per_page": pagination.per_page
                 })
-
             return response
         except Exception as e:
             raise ValueError(f"Error retrieving paginated products: {str(e)}")
@@ -120,14 +128,13 @@ class ProductService:
     # Update a product
     # ---------------------------
     @staticmethod
-    def update_product(product_id, name=None, price=None):
+    def update_product(product_id, **kwargs):
         """
         Updates an existing product.
 
         Args:
             product_id (int): ID of the product.
-            name (str, optional): Updated name.
-            price (float, optional): Updated price.
+            kwargs: Fields to update (e.g., name, price, stock_quantity, category_id).
 
         Returns:
             Product: The updated product object.
@@ -140,13 +147,14 @@ class ProductService:
             if not product:
                 raise ValueError("Product not found.")
 
-            # Update fields if provided
-            if name:
-                product.name = name
-            if price is not None:
-                if not isinstance(price, (int, float)) or price < 0:
-                    raise ValueError("Price must be a positive number.")
-                product.price = price
+            for key, value in kwargs.items():
+                if key == 'price':
+                    if value is None or not isinstance(value, (int, float, Decimal)) or Decimal(value) < 0:
+                        raise ValueError("Price must be a non-negative number.")
+                if key == 'stock_quantity':
+                    if value is None or not isinstance(value, int) or value < 0:
+                        raise ValueError("Stock quantity must be a non-negative integer.")
+                setattr(product, key, value)
 
             db.session.commit()
             return product
@@ -169,7 +177,7 @@ class ProductService:
             bool: True if deletion is successful.
 
         Raises:
-            ValueError: If product not found or delete fails.
+            ValueError: If product not found or deletion fails.
         """
         try:
             product = Product.query.get(product_id)

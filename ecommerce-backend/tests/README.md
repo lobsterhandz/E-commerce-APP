@@ -6,23 +6,30 @@ This folder contains all test scripts and supporting files for the Factory Manag
 
 ## Folder Structure
 
-```
 tests/
-├── __init__.py                # Marks the folder as a Python package
-├── mock_data.json             # Centralized mock data for testing
-├── mock_data.py               # Helper functions for loading and preprocessing mock data
-├── test_auth.py               # Tests for authentication endpoints
-├── test_user.py               # Tests for user management endpoints
-├── test_employee.py           # Tests for employee management endpoints
-├── test_product.py            # Tests for product management endpoints
-├── test_order.py              # Tests for order management endpoints
-├── test_customer.py           # Tests for customer management endpoints
-├── test_production.py         # Tests for production management endpoints
-├── test_analytics.py          # Tests for analytics and reporting endpoints
-├── test_utils.py              # Tests for utility functions (e.g., JWT, error responses)
-```
+│── auth/               # Tests related to authentication, roles, and token validation
+│   ├── test_login.py
+│   ├── test_register.py
+│   ├── test_refresh_token.py
+│   ├── test_role_based_access.py
+│── integration/        # High-level tests that combine multiple routes or behaviors
+│   ├── test_checkout_process.py
+│   ├── test_order_lifecycle.py
+│   ├── test_payment_flow.py
+│── unit/               # Isolated tests for each feature, focusing on business logic
+│   ├── test_category.py
+│   ├── test_product.py
+│   ├── test_user.py
+│── mocks/              # Test doubles (mock data and fake API responses)
+│   ├── mock_data.py
+│   ├── fake_tiktok_api.py
+│── utils/              # Shared helper functions for setting up tests
+│   ├── test_setup.py
+│   ├── jwt_helper.py
+│── test_config.py      # Special test config settings
+│── conftest.py         # Pytest setup (if using Pytest)
+│── run_tests.py        # Unified test runner script
 
----
 
 ## Purpose
 

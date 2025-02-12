@@ -4,7 +4,6 @@ from sqlalchemy import CheckConstraint
 from sqlalchemy.orm import relationship
 from datetime import datetime
 
-
 class Order(db.Model):
     __tablename__ = 'orders'
 
@@ -23,7 +22,8 @@ class Order(db.Model):
 
     # Relationships
     customer = relationship('Customer', back_populates='orders')
-    items = relationship('OrderItem', back_populates='order')
+    items = relationship('OrderItem', back_populates='order', cascade="all, delete-orphan")
+
     # ---------------------------
     # Soft Deletion
     # ---------------------------
@@ -48,8 +48,6 @@ class Order(db.Model):
         return {
             "id": self.id,
             "customer_id": self.customer_id,
-            "product_id": self.product_id,
-            "quantity": self.quantity,
             "total_price": self.total_price,
             "created_at": self.created_at.isoformat() if self.created_at else None,
             "updated_at": self.updated_at.isoformat() if self.updated_at else None,
@@ -59,11 +57,7 @@ class Order(db.Model):
                 "name": self.customer.name,
                 "email": self.customer.email
             } if self.customer else None,
-            "product": {
-                "id": self.product.id,
-                "name": self.product.name,
-                "price": self.product.price
-            } if self.product else None
+            "order_items": [item.to_dict() for item in self.items]  # Changed key from "items" to "order_items"
         }
 
     # ---------------------------

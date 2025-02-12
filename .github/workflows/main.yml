@@ -68,11 +68,18 @@ jobs:
           flask db upgrade
           python tests/db_seed.py
 
-      - name: Run Tests (Unittest & Pytest with Coverage)
+        - name: Run Tests (Unittest & Pytest with Coverage)
         working-directory: ecommerce-backend
         env:
           FLASK_ENV: ${{ secrets.FLASK_ENV }}
-          DATABASE_URL: postgresql://test_user:test_password@localhost/test_db
+          FLASK_CONFIG: ${{ secrets.FLASK_CONFIG }}
+          DATABASE_URL: ${{ secrets.TEST_DATABASE_URL }} 
+          SECRET_KEY: ${{ secrets.SECRET_KEY }}
+          JWT_SECRET_KEY: ${{ secrets.JWT_SECRET_KEY }}
+          PASSWORD_SALT: ${{ secrets.PASSWORD_SALT }}
+          SWAGGER_HOST: ${{ secrets.SWAGGER_HOST }}
+          SWAGGER_SCHEMES: ${{ secrets.SWAGGER_SCHEMES }}
+          USE_REDIS_CACHE: "False"
           PYTHONPATH: ${{ github.workspace }}/ecommerce-backend
         run: |
           source venv/bin/activate

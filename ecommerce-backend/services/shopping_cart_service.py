@@ -1,5 +1,5 @@
 # services/shopping_cart_service.py
-from models import db, ShoppingCart, ShoppingCartItem, Product
+from models import db, ShoppingCart, ShoppingCartItem, Product, Order_Item
 from sqlalchemy.exc import SQLAlchemyError
 
 class ShoppingCartService:
@@ -7,19 +7,16 @@ class ShoppingCartService:
     Service class to handle shopping cart operations.
     """
 
-    # ---------------------------
-    # Retrieve or Create Shopping Cart
-    # ---------------------------
     @staticmethod
     def get_cart_by_customer(customer_id):
         """
         Retrieve an existing shopping cart for a customer or create a new one if none exists.
-
+        
         Args:
-            customer_id (int): ID of the customer.
-
+            customer_id (int): The customer's ID.
+        
         Returns:
-            ShoppingCart: The customer's shopping cart object.
+            ShoppingCart: The customer's shopping cart.
         """
         try:
             cart = ShoppingCart.query.filter_by(customer_id=customer_id).first()
@@ -32,24 +29,21 @@ class ShoppingCartService:
             db.session.rollback()
             raise ValueError(f"Database error while retrieving cart: {str(e)}")
 
-    # ---------------------------
-    # Add or Update Item in Cart
-    # ---------------------------
     @staticmethod
     def add_item_to_cart(customer_id, product_id, quantity):
         """
-        Adds a new item or updates an existing item in the shopping cart.
-
+        Add a new item to the customer's cart or update an existing one.
+        
         Args:
-            customer_id (int): ID of the customer.
-            product_id (int): ID of the product.
-            quantity (int): Quantity of the product to add.
-
+            customer_id (int): The customer's ID.
+            product_id (int): The product's ID.
+            quantity (int): The quantity to add.
+        
         Returns:
-            ShoppingCartItem: The updated or newly added cart item.
-
+            ShoppingCartItem: The new or updated cart item.
+        
         Raises:
-            ValueError: If validation fails or the product does not exist.
+            ValueError: If validation fails.
         """
         try:
             if quantity <= 0:
@@ -80,30 +74,26 @@ class ShoppingCartService:
             db.session.rollback()
             raise ValueError(f"Database error while adding item to cart: {str(e)}")
 
-    # ---------------------------
-    # Remove an Item from the Cart
-    # ---------------------------
     @staticmethod
     def remove_item_from_cart(customer_id, product_id):
         """
-        Removes a specific item from the shopping cart.
-
+        Remove a specific item from the shopping cart.
+        
         Args:
-            customer_id (int): ID of the customer.
-            product_id (int): ID of the product to remove.
-
+            customer_id (int): The customer's ID.
+            product_id (int): The product's ID.
+        
         Returns:
-            bool: True if the item was removed successfully.
-
+            bool: True if the item was removed.
+        
         Raises:
-            ValueError: If the item is not found in the cart.
+            ValueError: If the item is not found.
         """
         try:
             cart = ShoppingCartService.get_cart_by_customer(customer_id)
             item = ShoppingCartItem.query.filter_by(cart_id=cart.id, product_id=product_id).first()
             if not item:
                 raise ValueError("Item not found in cart.")
-
             db.session.delete(item)
             db.session.commit()
             return True
@@ -111,56 +101,51 @@ class ShoppingCartService:
             db.session.rollback()
             raise ValueError(f"Database error while removing item from cart: {str(e)}")
 
-    # ---------------------------
-    # Clear the Shopping Cart
-    # ---------------------------
     @staticmethod
     def clear_cart(customer_id):
         """
-        Clears all items from the shopping cart.
-
+        Clear all items from the customer's shopping cart.
+        
         Args:
-            customer_id (int): ID of the customer.
-
+            customer_id (int): The customer's ID.
+        
         Returns:
-            bool: True if the cart was cleared successfully.
+            bool: True if the cart was cleared.
         """
         try:
             cart = ShoppingCartService.get_cart_by_customer(customer_id)
             if cart:
-                # Remove each item individually
-                for item in cart.items:
-                    db.session.delete(item)
+                # Remove all items in the cart
+                db.session.query(ShoppingCartItem).filter_by(cart_id=cart.id).delete()
                 db.session.commit()
             return True
         except SQLAlchemyError as e:
             db.session.rollback()
             raise ValueError(f"Database error while clearing cart: {str(e)}")
 
-    # ---------------------------
-    # Checkout Cart
-    # ---------------------------
     @staticmethod
     def checkout_cart(customer_id):
         """
-        Converts the current shopping cart into an order.
-        It transforms the cart items into a list of order item dictionaries,
-        calls the OrderService to create a new order, and then clears the cart.
-
+        Converts the customer's shopping cart into an order.
+        
+        It transforms each cart item into a dictionary representing an order item,
+        then calls OrderService.create_order() to create the order,
+        and finally clears the cart.
+        
         Args:
-            customer_id (int): ID of the customer.
-
+            customer_id (int): The customer's ID.
+        
         Returns:
-            dict: A summary containing order_id, total_price, and the order items.
-
+            dict: A summary of the created order including order_id, total_price, and order items.
+        
         Raises:
-            ValueError: If the cart is empty or any processing error occurs.
+            ValueError: If the cart is empty or a processing error occurs.
         """
         cart = ShoppingCartService.get_cart_by_customer(customer_id)
         if not cart or not cart.items:
             raise ValueError("Cannot checkout. Shopping cart is empty.")
 
-        # Transform cart items into order item dictionaries
+        # Prepare order_items as a list of dictionaries
         order_items = [
             {
                 "product_id": item.product_id,
@@ -170,20 +155,20 @@ class ShoppingCartService:
             for item in cart.items
         ]
 
-        # Import OrderService locally to avoid circular dependencies
+        # Import OrderService locally to avoid circular imports
         from services.order_service import OrderService
 
-        # Create an order using the list of order items
+        # Create the order using OrderService; it must accept 'order_items' as a keyword argument
         new_order = OrderService.create_order(
             customer_id=customer_id,
             order_items=order_items
         )
 
-        # Clear the shopping cart after successful checkout
+        # Clear the shopping cart after successful order creation
         ShoppingCartService.clear_cart(customer_id)
 
         return {
             "order_id": new_order.id,
             "total_price": new_order.total_price,
-            "items": order_items
+            "order_items": order_items
         }

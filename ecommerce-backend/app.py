@@ -134,6 +134,10 @@ def create_app(config_name="development", *args, **kwargs):
     app.register_blueprint(create_user_bp(cache_manager.cache, app.limiter), url_prefix="/users")
     app.register_blueprint(create_category_bp(cache_manager.cache, app.limiter), url_prefix="/categories")
 
+    @app.route("/")
+    def home():
+        return {"message": "Welcome to the E-Commerce API!"}, 200
+
     @app.route("/health", methods=["GET"])
     def health_check():
         """Health check endpoint."""

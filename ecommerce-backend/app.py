@@ -10,7 +10,7 @@ from sqlalchemy import text
 from flask_jwt_extended import JWTManager
 
 from models import db
-from config import Config, config_by_name, get_config, DevelopmentConfig
+from config import config_by_name, DevelopmentConfig 
 from utils.limiter import create_limiter
 from utils.caching import CacheManager
 from routes import (
@@ -24,6 +24,7 @@ from routes import (
     create_user_bp,
     create_category_bp,
 )
+print(f"config_by_name: {config_by_name}")  # 🔍 Debugging statement
 
 # Load environment variables from .env
 from dotenv import load_dotenv
@@ -57,10 +58,12 @@ def create_app(config_name="development", *args, **kwargs):
     config_name = config_name or os.getenv("FLASK_CONFIG", "development")
     app = Flask(__name__)
 
-    config_class = config_by_name.get(config_name, DevelopmentConfig)  # ✅ Get the class
-    app.config.from_object(config_class())  # ✅ Instantiate it before passing
+    # ✅ FIXED: Don't instantiate, pass class reference directly
+    config_class = config_by_name.get(config_name, DevelopmentConfig)
+    app.config.from_object(config_class)  # ✅ Don't call it like a function
 
-    print(f"SWAGGER_HOST: {app.config.get('SWAGGER_HOST')}")  # Debug
+    print(f"DEBUG: Using config: {config_class.__name__}")  # ✅ Debugging statement
+
 
     limiter = create_limiter(app)
     app.limiter = limiter

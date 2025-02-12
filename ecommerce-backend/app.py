@@ -10,7 +10,7 @@ from sqlalchemy import text
 from flask_jwt_extended import JWTManager
 
 from models import db
-from config import config_by_name, DevelopmentConfig
+from config import config, config_by_name, get_config, DevelopmentConfig
 from utils.limiter import create_limiter
 from utils.caching import CacheManager
 from routes import (
@@ -66,12 +66,8 @@ def create_app(config_name="development", *args, **kwargs):
     config_name = config_name or os.getenv("FLASK_CONFIG", "development")
     app = Flask(__name__)
 
-    # ✅ Ensure correct config loading
     if config_name in config_by_name:
-        if isinstance(config_by_name[config_name], dict):
-            app.config.update(config_by_name[config_name])  
-        else:
-            app.config.from_object(get_config(config_name)) 
+        app.config.from_object(get_config(config_name))  # ✅ Correctly load config instance
     else:
         raise ValueError(f"Invalid configuration name: {config_name}")
     print(f"SWAGGER_HOST: {app.config.get('SWAGGER_HOST')}")  # Debug

@@ -49,6 +49,7 @@ jobs:
         env:
           FLASK_APP: app
           FLASK_ENV: ${{ secrets.FLASK_ENV }}
+          FLASK_CONFIG: ${{ secrets.FLASK_CONFIG }}
           DATABASE_URL: ${{ secrets.DATABASE_URL }}
           SECRET_KEY: ${{ secrets.SECRET_KEY }}
           JWT_SECRET_KEY: ${{ secrets.JWT_SECRET_KEY }}

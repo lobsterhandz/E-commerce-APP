@@ -63,10 +63,11 @@ class DevelopmentConfig(Config):
 
 class TestingConfig(Config):
     TESTING = True
-    SQLALCHEMY_DATABASE_URI = os.getenv("sqlite:///:memory:")
+    SQLALCHEMY_DATABASE_URI = os.getenv("TEST_DATABASE_URL", "sqlite:///:memory:")  # ✅ Explicitly define
     SQLALCHEMY_TRACK_MODIFICATIONS = False
-    RATELIMIT_ENABLED = False # stop it from being enabled by default
+    RATELIMIT_ENABLED = False  # Stop rate limiting in tests
     CACHE_TYPE = "NullCache"  # Disable caching during tests
+
 
 class ProductionConfig(Config):
     DEBUG = False

@@ -10,7 +10,7 @@ from sqlalchemy import text
 from flask_jwt_extended import JWTManager
 
 from models import db
-from config import config, config_by_name, get_config, DevelopmentConfig
+from config import Config, config_by_name, get_config
 from utils.limiter import create_limiter
 from utils.caching import CacheManager
 from routes import (
@@ -54,27 +54,16 @@ def validate_configuration(app):
         raise RuntimeError(f"Application misconfigured: {', '.join(missing_keys)}")
 
 def create_app(config_name="development", *args, **kwargs):
-    """
-    Factory function to create and configure the Flask application.
-    
-    Args:
-        config_name (str): Configuration name ('development', 'testing', 'production').
-    
-    Returns:
-        Flask: Configured Flask application.
-    """
     config_name = config_name or os.getenv("FLASK_CONFIG", "development")
     app = Flask(__name__)
 
-    if config_name in config_by_name:
-        app.config.from_object(get_config(config_name))  # ✅ Correctly load config instance
-    else:
-        raise ValueError(f"Invalid configuration name: {config_name}")
+    config_class = config_by_name.get(config_name, DevelopmentConfig)  # ✅ Get the class
+    app.config.from_object(config_class())  # ✅ Instantiate it before passing
+
     print(f"SWAGGER_HOST: {app.config.get('SWAGGER_HOST')}")  # Debug
 
     limiter = create_limiter(app)
     app.limiter = limiter
-
 
     # Enable CORS
     CORS(app)

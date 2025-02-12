@@ -124,7 +124,7 @@ class OrderService:
         Raises:
             ValueError: If query or input validation fails.
         """
-       try:
+        try:
             page = max(1, int(page))
             per_page = min(max(1, int(per_page)), 100)
             if sort_by not in OrderService.SORTABLE_FIELDS:

@@ -53,7 +53,7 @@ def validate_configuration(app):
         app.logger.error(f"Missing configuration keys: {', '.join(missing_keys)}")
         raise RuntimeError(f"Application misconfigured: {', '.join(missing_keys)}")
 
-def create_app(config_name="development"):
+def create_app(config_name="development", *args, **kwargs):
     """
     Factory function to create and configure the Flask application.
     

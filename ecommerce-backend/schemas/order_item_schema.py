@@ -6,10 +6,7 @@ class OrderItemSchema(Schema):
     # ---------------------------
     id = fields.Int(dump_only=True)
 
-    order_id = fields.Int(
-        required=True,
-        error_messages={"required": "Order ID is required."}
-    )
+    order_id = fields.Int(dump_only=True)
 
     product_id = fields.Int(
         required=True,

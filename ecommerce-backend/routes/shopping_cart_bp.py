@@ -288,13 +288,11 @@ def create_shopping_cart_bp(cache, limiter):
         }
     })
     def checkout_cart():
-        """Checkout the shopping cart and create an order."""
         try:
             customer_id = get_jwt_identity()
-            
-            # Call a service function to handle checkout
+            # Import OrderService here so it is defined
+            from services.order_service import OrderService
             order_summary = ShoppingCartService.checkout_cart(customer_id)
-            
             return jsonify({
                 "message": "Checkout successful",
                 "order_summary": order_summary
@@ -303,9 +301,5 @@ def create_shopping_cart_bp(cache, limiter):
             return error_response(str(e), 400)
         except Exception as e:
             return error_response(f"Error during checkout: {str(e)}", 500)
-
-
-
-
 
     return shopping_cart_bp

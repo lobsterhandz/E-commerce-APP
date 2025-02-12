@@ -123,6 +123,9 @@ def test_customer_cannot_delete_product(client, auth_tokens):
     assert response.status_code == 403, "Customer should not be allowed to delete a product"
 
 def test_admin_can_list_users(client, auth_tokens):
+    """
+    Test that admins can list users.
+    """
     headers = {"Authorization": auth_tokens["admin"]}
     response = client.get("/users", headers=headers)
     assert response.status_code == 200, f"Expected 200 but got {response.status_code}"
@@ -143,14 +146,14 @@ def test_create_order(client, auth_tokens):
     payload = {
         "customer_id": 1,
         "order_items": [
-            {"product_id": 1, "quantity": 2, "price_at_order": "99.99"}
+            {"product_id": 1, "quantity": 2, "price_at_order": "99.99"}  # Use string for price if needed
         ]
     }
     response = client.post("/orders", json=payload, headers=headers)
     assert response.status_code == 201, f"Expected 201 but got {response.status_code}"
     data = response.get_json()
-    assert "order_id" in data or "id" in data, "Order response missing 'order_id'"
-
+    assert "order_id" in data, "Order response missing 'order_id'"
+    
 def test_admin_cannot_create_order(client, auth_tokens):
     """
     Test that an admin is not permitted to create an order.

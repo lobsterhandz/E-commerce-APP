@@ -6,10 +6,7 @@ class OrderSchema(Schema):
     # Fields
     # ---------------------------
     id = fields.Int(dump_only=True)
-    customer_id = fields.Int(
-        required=True,
-        error_messages={"required": "Customer ID is required."}
-    )
+    customer_id = fields.Int(required=True, error_messages={"required": "Customer ID is required."})
     # Use a List field to ensure proper input type.
     order_items = fields.List(
         fields.Nested(order_item_schema, exclude=("order_id",)),

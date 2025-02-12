@@ -74,11 +74,12 @@ def create_order_bp(cache, limiter):
         }
     })
     def create_order():
-        # Enforce that only customers (role "user") can create orders.
-        if g.get("jwt_claims", {}).get("role") != "user":
+        # Enforce that only customers can create orders.
+        if g.user.get("role") != "user":
             return error_response("Only customers can create orders", 403)
         try:
             data = request.get_json()
+            # Validate the data using the OrderSchema (which expects 'order_items')
             validated_data = order_schema.load(data)
             order = OrderService.create_order(**validated_data)
             return jsonify(order_schema.dump(order)), 201

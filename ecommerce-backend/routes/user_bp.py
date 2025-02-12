@@ -245,7 +245,6 @@ def create_user_bp(cache, limiter):
     # List All Users
     # ---------------------------
     @user_bp.route('', methods=['GET'])
-    @cache.cached(query_string=True)
     @limiter.limit("10 per minute")
     @jwt_required()
     @role_required('admin')

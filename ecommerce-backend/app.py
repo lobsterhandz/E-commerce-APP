@@ -10,7 +10,7 @@ from sqlalchemy import text
 from flask_jwt_extended import JWTManager
 
 from models import db
-from config import config_by_name
+from config import config_by_name, DevelopmentConfig
 from utils.limiter import create_limiter
 from utils.caching import CacheManager
 from routes import (
@@ -65,16 +65,12 @@ def create_app(config_name="development", *args, **kwargs):
     """
     config_name = config_name or os.getenv("FLASK_CONFIG", "development")
     app = Flask(__name__)
-    # Ensure config_by_name is correctly referenced
-    if isinstance(config_by_name, dict) and config_name in config_by_name:
-        app.config.update(config_by_name[config_name])  # Correct way to load dict config
-    else:
-        raise ValueError(f"Invalid configuration name: {config_name}")
-
+    app.config.from_object(config_by_name[config_name])
     print(f"SWAGGER_HOST: {app.config.get('SWAGGER_HOST')}")  # Debug
 
-    # Initialize rate limiter
-    create_limiter(app)
+    limiter = create_limiter(app)
+    app.limiter = limiter
+
 
     # Enable CORS
     CORS(app)

@@ -68,12 +68,12 @@ def create_app(config_name="development", *args, **kwargs):
 
     # ✅ Ensure correct config loading
     if config_name in config_by_name:
-        if isinstance(config_by_name[config_name], dict):
-            app.config.update(config_by_name[config_name])  
-        else:
-            app.config.from_object(get_config(config_name)) 
+        config_class = config_by_name[config_name]  # ✅ Get the class
+        app.config.from_object(config_class())  # ✅ Instantiate it before passing
     else:
         raise ValueError(f"Invalid configuration name: {config_name}")
+
+
     print(f"SWAGGER_HOST: {app.config.get('SWAGGER_HOST')}")  # Debug
 
     limiter = create_limiter(app)

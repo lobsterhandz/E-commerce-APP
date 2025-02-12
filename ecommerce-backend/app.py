@@ -10,7 +10,7 @@ from sqlalchemy import text
 from flask_jwt_extended import JWTManager
 
 from models import db
-from config import config_by_name, DevelopmentConfig
+from config import get_config, config_by_name
 from utils.limiter import create_limiter
 from utils.caching import CacheManager
 from routes import (

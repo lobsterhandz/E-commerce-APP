@@ -1,4 +1,4 @@
-ommerce CI/CD
+name: E-Commerce CI/CD
 
 on:
   push:
@@ -36,21 +36,16 @@ jobs:
           python -m venv venv
           source venv/bin/activate
           echo "✅ Virtual environment created successfully"
- Check failure on line 39 in .github/workflows/main.yml
 
-
-GitHub Actions
-/ .github/workflows/main.yml
-Invalid workflow file
-
-You have an error in your yaml syntax on line 39
       - name: Install Dependencies
         working-directory: ecommerce-backend
         run: |
           source venv/bin/activate
           pip install --upgrade pip
           pip install -r requirements.txt
-        - name: Apply Migrations
+
+      # ✅ FIXED INDENTATION (No longer inside Install Dependencies)
+      - name: Apply Migrations  
         working-directory: ecommerce-backend
         env:
           FLASK_APP: app
@@ -73,7 +68,8 @@ You have an error in your yaml syntax on line 39
           flask db migrate -m "Auto migration" || echo "⚠️ No new migrations detected."
           flask db upgrade
           python tests/db_seed.py
-      - name: Run Tests (Unittest & Pytest with Coverage)  # ✅ FIXED INDENTATION (now a separate step)
+
+      - name: Run Tests (Unittest & Pytest with Coverage)  
         working-directory: ecommerce-backend
         env:
           FLASK_ENV: ${{ secrets.FLASK_ENV }}
@@ -89,6 +85,7 @@ You have an error in your yaml syntax on line 39
         run: |
           source venv/bin/activate
           pytest tests/ --cov=routes --cov=services --cov-report=term --disable-warnings --maxfail=3 --tb=short -v
+
   deploy:
     needs: test
     runs-on: ubuntu-latest

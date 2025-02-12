@@ -63,15 +63,19 @@ def create_app(config_name="development", *args, **kwargs):
     Returns:
         Flask: Configured Flask application.
     """
-    config_name = config_name or os.getenv("FLASK_CONFIG", "development")
+    
     app = Flask(__name__)
 
-    # ✅ Ensure correct config loading
+    config_name = os.getenv("FLASK_CONFIG", "development")
+    print(f"DEBUG: config_name type: {type(config_name)}; value: {config_name}")
+    print(f"🔥 Using config: {config_name}")  # Debug output
+    print(f"📂 Available configs: {list(config_by_name.keys())}")  # Debug available configs
+    
     if config_name in config_by_name:
-        config_class = config_by_name[config_name]  # ✅ Get the class
-        app.config.from_object(config_class())  # ✅ Instantiate it before passing
+        config_class = config_by_name[config_name]
+        app.config.from_object(config_class())  # ✅ Instantiate before passing
     else:
-        raise ValueError(f"Invalid configuration name: {config_name}")
+        raise ValueError(f"🚨 Invalid configuration name: {config_name}"))
 
 
     print(f"SWAGGER_HOST: {app.config.get('SWAGGER_HOST')}")  # Debug

@@ -9,53 +9,46 @@ class OrderService:
     # Create Order
     # ---------------------------
     @staticmethod
-    def create_order(customer_id, product_id, quantity):
+    def create_order(customer_id, order_items):
         """
-        Creates a new order with validations.
+        Creates a new order for the given customer with the provided order items.
 
         Args:
             customer_id (int): ID of the customer.
-            product_id (int): ID of the product.
-            quantity (int): Quantity of the product.
+            order_items (list): A list of order item dictionaries. Each dictionary must
+                                include 'product_id', 'quantity', and 'price_at_order'.
 
         Returns:
-            Order: Newly created order object.
+            Order: The newly created order object.
 
         Raises:
-            ValueError: If validation fails or creation error occurs.
+            ValueError: If the customer is not found or if the order_items list is invalid.
         """
-        try:
-            # Validate customer
-            customer = Customer.query.get(customer_id)
-            if not customer:
-                raise ValueError("Customer not found.")
+        # Validate customer existence
+        customer = Customer.query.get(customer_id)
+        if not customer:
+            raise ValueError("Customer not found.")
 
-            # Validate product
-            product = Product.query.get(product_id)
-            if not product:
-                raise ValueError("Product not found.")
+        if not order_items or not isinstance(order_items, list):
+            raise ValueError("Order items must be provided as a list.")
 
-            # Validate quantity
-            if quantity <= 0:
-                raise ValueError("Quantity must be greater than zero.")
+        # Calculate total_price from the order items
+        total_price = 0
+        for item in order_items:
+            if "quantity" not in item or "price_at_order" not in item:
+                raise ValueError("Each order item must include quantity and price_at_order.")
+            total_price += item["quantity"] * item["price_at_order"]
 
-            # Calculate total price
-            total_price = product.price * quantity
+        new_order = Order(
+            customer_id=customer_id,
+            total_price=total_price,
+            created_at=datetime.utcnow(),
+            updated_at=datetime.utcnow()
+        )
+        db.session.add(new_order)
+        db.session.commit()
 
-            # Create and save order
-            new_order = Order(
-                customer_id=customer_id,
-                product_id=product_id,
-                quantity=quantity,
-                total_price=total_price
-            )
-            db.session.add(new_order)
-            db.session.commit()
-
-            return new_order
-        except Exception as e:
-            db.session.rollback()
-            raise ValueError(f"Error creating order: {str(e)}")
+        return new_order
 
     # ---------------------------
     # Get Order by ID
@@ -131,31 +124,16 @@ class OrderService:
         Raises:
             ValueError: If query or input validation fails.
         """
-        try:
-            # Input validation
-            page = max(1, int(page))  # Ensure page >= 1
-            per_page = min(max(1, int(per_page)), 100)  # Ensure 1 <= per_page <= 100
-
-            # Validate sort_by field
+       try:
+            page = max(1, int(page))
+            per_page = min(max(1, int(per_page)), 100)
             if sort_by not in OrderService.SORTABLE_FIELDS:
                 raise ValueError(f"Invalid sort_by field. Allowed: {OrderService.SORTABLE_FIELDS}")
-
-            # Determine sort direction
             sort_column = getattr(Order, sort_by)
             if sort_order.lower() == 'desc':
                 sort_column = sort_column.desc()
-
-            # Perform query with sorting
-            pagination = Order.query.order_by(sort_column).paginate(
-                page=page, per_page=per_page, error_out=False
-            )
-
-            # Prepare response
-            response = {
-                "items": pagination.items
-            }
-
-            # Include metadata if requested
+            pagination = Order.query.order_by(sort_column).paginate(page=page, per_page=per_page, error_out=False)
+            response = {"items": pagination.items}
             if include_meta:
                 response.update({
                     "total": pagination.total,
@@ -163,7 +141,6 @@ class OrderService:
                     "page": pagination.page,
                     "per_page": pagination.per_page
                 })
-
             return response
         except Exception as e:
             raise ValueError(f"Error retrieving paginated orders: {str(e)}")

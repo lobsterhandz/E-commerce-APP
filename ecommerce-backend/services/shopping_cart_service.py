@@ -155,7 +155,8 @@ class ShoppingCartService:
             }
             for item in cart.items
         ]
-
+        # Import OrderService locally to avoid circular imports
+        from services.order_service import OrderService
         # Create an order from cart
         new_order = OrderService.create_order(customer_id=customer_id, order_items=order_items)
 

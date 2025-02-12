@@ -146,14 +146,25 @@ def test_create_order(client, auth_tokens):
     payload = {
         "customer_id": 1,
         "order_items": [
-            {"product_id": 1, "quantity": 2, "price_at_order": "99.99"}  # Use string for price if needed
+            {"product_id": 1, "quantity": 2, "price_at_order": 99.99}
         ]
     }
     response = client.post("/orders", json=payload, headers=headers)
     assert response.status_code == 201, f"Expected 201 but got {response.status_code}"
     data = response.get_json()
     assert "order_id" in data, "Order response missing 'order_id'"
-    
+
+def test_checkout_cart(client, auth_tokens):
+    """
+    Test the shopping cart checkout process for a customer.
+    """
+    headers = {"Authorization": auth_tokens["customer"]}
+    response = client.post("/shopping_cart/checkout", headers=headers)
+    assert response.status_code == 200, f"Expected 200 but got {response.status_code}"
+    data = response.get_json()
+    assert "message" in data, "Checkout response missing 'message' key"
+
+
 def test_admin_cannot_create_order(client, auth_tokens):
     """
     Test that an admin is not permitted to create an order.
@@ -169,10 +180,3 @@ def test_admin_cannot_create_order(client, auth_tokens):
     # Allow 400 or 403
     assert response.status_code in [400, 403], f"Admin should not be allowed to create an order (Got {response.status_code})"
     assert "error" in response.get_json(), "Expected an error message in response"
-
-def test_checkout_cart(client, auth_tokens):
-    headers = {"Authorization": auth_tokens["customer"]}
-    response = client.post("/shopping_cart/checkout", headers=headers)
-    assert response.status_code == 200, f"Expected 200 but got {response.status_code}"
-    data = response.get_json()
-    assert "message" in data, "Checkout response missing 'message' key"

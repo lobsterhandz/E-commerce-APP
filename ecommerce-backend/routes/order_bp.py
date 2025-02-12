@@ -24,8 +24,8 @@ def create_order_bp(cache, limiter):
         "tags": ["Orders"],
         "summary": "Create a new order",
         "description": (
-            "Creates a new order with the specified details. The payload must include a customer_id and a list of order items. "
-            "Each order item should include product_id, quantity, and price_at_order."
+            "Creates a new order with the specified details. The payload must include a customer_id "
+            "and a list of order items (each containing product_id, quantity, and price_at_order)."
         ),
         "security": [{"Bearer": []}],
         "parameters": [
@@ -53,7 +53,7 @@ def create_order_bp(cache, limiter):
                                     },
                                     "quantity": {
                                         "type": "integer",
-                                        "description": "Quantity of the product ordered."
+                                        "description": "Quantity ordered."
                                     },
                                     "price_at_order": {
                                         "type": "number",
@@ -74,20 +74,21 @@ def create_order_bp(cache, limiter):
         }
     })
     def create_order():
-        # Enforce that only customers can create orders.
+        # Ensure only customers (role "user") can create orders.
         if g.user.get("role") != "user":
             return error_response("Only customers can create orders", 403)
         try:
             data = request.get_json()
-            # Validate the data using the OrderSchema (which expects 'order_items')
             validated_data = order_schema.load(data)
-            order = OrderService.create_order(**validated_data)
+            order = OrderService.create_order(
+                customer_id=validated_data["customer_id"],
+                order_items=validated_data["order_items"]
+            )
             return jsonify(order_schema.dump(order)), 201
         except Exception as e:
             current_app.logger.error(f"Error creating order: {str(e)}")
             return error_response(str(e))
 
-    
     # ---------------------------
     # Get Paginated Orders
     # ---------------------------

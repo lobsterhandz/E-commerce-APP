@@ -44,7 +44,7 @@ jobs:
           pip install --upgrade pip
           pip install -r requirements.txt
 
-      - name: Apply Migrations
+            - name: Apply Migrations
         working-directory: ecommerce-backend
         env:
           FLASK_APP: app
@@ -68,7 +68,7 @@ jobs:
           flask db upgrade
           python tests/db_seed.py
 
-        - name: Run Tests (Unittest & Pytest with Coverage)
+      - name: Run Tests (Unittest & Pytest with Coverage)  # ✅ FIXED INDENTATION (now a separate step)
         working-directory: ecommerce-backend
         env:
           FLASK_ENV: ${{ secrets.FLASK_ENV }}

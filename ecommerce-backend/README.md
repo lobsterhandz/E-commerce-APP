@@ -221,18 +221,32 @@ ecommerce-backend/
    python menu.py
    ```
 
-## Testing the Application
+## CI/CD Pipeline
+### GitHub Actions Workflow
+The CI/CD pipeline is defined in `.github/workflows/main.yml` and includes:
+- **Build & Test:**
+  - Automatically triggers on pushes to the main or feature branches.
+  - Runs unit tests with unittest and pytest.
+  - Fails the build if tests fail.
+- **Deployment:**
+  - Deploys to Render after passing all tests.
+  - Uses Render’s PostgreSQL database.
+  - Ensures production readiness with Gunicorn.
 
-Unit tests are included to validate the functionality of each route. To run the tests, use the following command:
+## Running Tests
+Unit tests ensure the reliability of API endpoints. To run them:
 ```sh
-python -m unittest discover -s tests -p "test_*.py"
+pytest tests/ --cov=routes --cov=services --cov-report=term --disable-warnings
 ```
 
-The tests cover:
-- Customer CRUD operations (`test_customer.py`)
-- Customer Account operations (`test_customer_account.py`)
-- Product management (`test_product.py`)
-- Order management (`test_order.py`)
+## Deployment
+### Render Deployment
+The application is deployed on Render with:
+- **Automatic deployment** from GitHub Actions.
+- **Database hosted on Render PostgreSQL**.
+- **Gunicorn for serving the Flask API**.
+- **Swagger UI for API documentation**.
+
 
 ## Contribution Guidelines
 - Contributions are welcome! Please fork the repository and create a pull request.
@@ -246,7 +260,11 @@ For any issues or inquiries, please contact [josemurillo82@gmail.com].
 
 ## Notes & improvements
 Version: v6.12.0- stable
+- added updated README 2/12/25
 - added local db(sqlite) for testing enviorments to avoid accidental change/loss to prodution data.
 - Use simple cache(local) if Redis not setup.
 - can select config class (test,development, production) from your enviorment variable.
 - Github Actions will run conftest and test_enpoints before a succesfull push (ci-cd) 
+
+
+

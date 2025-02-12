@@ -56,15 +56,16 @@ def validate_configuration(app):
 
 def create_app(config_name="development", *args, **kwargs):
     config_name = config_name or os.getenv("FLASK_CONFIG", "development")
+
+    print(f"DEBUG: FLASK_CONFIG = {config_name}")  # ✅ Debugging
+    print(f"DEBUG: Type of FLASK_CONFIG = {type(config_name)}")  # ✅ Verify it's a string
+
     app = Flask(__name__)
 
-    # ✅ FIXED: Don't instantiate, pass class reference directly
-    config_class = config_by_name.get(config_name, DevelopmentConfig)
-    app.config.from_object(config_class)  # ✅ Don't call it like a function
+    config_class = config_by_name.get(config_name, DevelopmentConfig)  # ✅ Get the class
+    print(f"DEBUG: Selected config class = {config_class}")  # ✅ Debugging
 
-    print(f"DEBUG: Using config: {config_class.__name__}")  # ✅ Debugging statement
-
-
+    app.config.from_object(config_class())  # ✅ Instantiate before passing
     limiter = create_limiter(app)
     app.limiter = limiter
 

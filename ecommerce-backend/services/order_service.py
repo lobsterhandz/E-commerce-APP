@@ -1,4 +1,4 @@
-from models import db, Order, Order_Item, Product, Customer
+from models import db, Order, OrderItem, Product, Customer
 from datetime import datetime 
 
 

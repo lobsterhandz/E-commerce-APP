@@ -75,7 +75,7 @@ def create_app(config_name="development", *args, **kwargs):
         config_class = config_by_name[config_name]
         app.config.from_object(config_class())  # ✅ Instantiate before passing
     else:
-        raise ValueError(f"🚨 Invalid configuration name: {config_name}"))
+        raise ValueError(f"🚨 Invalid configuration name: {config_name}")
 
 
     print(f"SWAGGER_HOST: {app.config.get('SWAGGER_HOST')}")  # Debug

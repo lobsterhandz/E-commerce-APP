@@ -61,13 +61,13 @@ def create_app(config_name="development", *args, **kwargs):
     if isinstance(config_name, dict):
         raise TypeError(f"❌ ERROR: Expected a string for config_name, got {type(config_name)} instead: {config_name}")
 
-    print(f"DEBUG: FLASK_CONFIG = {config_name}")  # ✅ Debugging
-    print(f"DEBUG: Type of FLASK_CONFIG = {type(config_name)}")  # ✅ Verify it's a string
+    print(f"DEBUG: FLASK_CONFIG = {config_name}")  
+    print(f"DEBUG: Type of FLASK_CONFIG = {type(config_name)}")  
 
-    config_class = config_by_name.get(config_name, DevelopmentConfig)  # ✅ Get the class
-    print(f"DEBUG: Selected config class = {config_class}")  # ✅ Debugging
+    config_class = config_by_name.get(config_name, DevelopmentConfig)  
+    print(f"DEBUG: Selected config class = {config_class}")  
     ## app.config.from_object(config_by_name[config_name]) # alt usage
-    app.config.from_object(config_class())  # ✅ Instantiate before passing
+    app.config.from_object(config_class())  
     limiter = create_limiter(app)
     app.limiter = limiter
 

@@ -1,8 +1,25 @@
 # E-commerce Management System
 
 ## Project Overview
-This project is a robust E-commerce Management System developed with a Flask backend and a React frontend. The system provides CRUD (Create, Read, Update, Delete) operations for managing customers, customer accounts, products, and orders. It integrates a MySQL database (or SQLite as default) and uses Axios for front-end API calls.
-
+This project is a robust E-commerce Management System developed with a Flask backend and a React frontend. The system provides CRUD (Create, Read, Update, Delete) operations for managing customers, customer accounts, products, and orders. It integrates a MySQL database (or SQLite as default).
+JSON Web Tokens (JWT)
+Used for secure user authentication and role-based access control.
+Provides a stateless mechanism for verifying users with roles such as super_admin, admin, and user.
+Flask-Caching
+Implements caching for frequently accessed endpoints, significantly improving performance.
+Query strings are utilized for cache keys, ensuring endpoint flexibility.
+Flask-Limiter
+Prevents API abuse by limiting the number of requests per user for specific endpoints.
+Configurable rate limits such as 5 per minute or 10 per second.
+Marshmallow
+Handles data validation and serialization for request bodies and responses.
+Ensures all API inputs adhere to the required schema.
+Dynamic Shopping Cart
+Fully dynamic shopping cart system allowing users to:
+Add items (with quantity and subtotal calculations).
+Update item quantities in real-time.
+Remove items.
+Checkout with the total price calculation.
 ---
 
 ## Backend API Structure
